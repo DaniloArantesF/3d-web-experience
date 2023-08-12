@@ -127,7 +127,14 @@ export class App {
       () => {
         return this.characterManager.getLocalCharacterPositionAndRotation();
       },
+<<<<<<< HEAD
       [`${this.protocol}//${this.host}/mml-documents/example-mml.html`],
+=======
+      [
+        `${protocol}//${host}/mml-documents/maze.html`,
+        `${protocol}//${host}/mml-documents/shaders.html`,
+      ],
+>>>>>>> Added maze and shaders
     );
 
     this.group.add(mmlComposition.group);
