@@ -131,8 +131,9 @@ export class App {
       [`${this.protocol}//${this.host}/mml-documents/example-mml.html`],
 =======
       [
-        `${protocol}//${host}/mml-documents/maze.html`,
-        `${protocol}//${host}/mml-documents/shaders.html`,
+        // `${protocol}//${host}/mml-documents/maze.html`,
+        // `${protocol}//${host}/mml-documents/shaders.html`,
+        `${protocol}//${host}/mml-documents/opacity-test.html`,
       ],
 >>>>>>> Added maze and shaders
     );

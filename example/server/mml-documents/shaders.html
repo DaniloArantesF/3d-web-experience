@@ -1,16 +1,93 @@
 <m-group x="30" sx="0.4" sy="0.4" rx="0" y="3">
   <m-light type="spotlight" ry="45" rx="45" x="0" y="10" z="20"></m-light>
   <m-position-probe id="my-position-probe" x="0" z="4" range="17" interval="50"></m-position-probe>
-  <m-audio id="my-audio" class="some-audio-class" src="https://www.daniloarantesf.me/assets/songs/song1.mp3" debug="false" loop="true" enabled="true" volume="1.5" z="-3">
-    <m-label onclick="pause(event.currentTarget.parentNode)" content="pause" x="-10" y="-5" z="1" rx="-15" font-size="100" width="5" alignment="center" height="1.5" color="#ffffff"></m-label>
-    <m-label onclick="unpause(event.currentTarget.parentNode)" content="unpause" x="-5" y="-5" z="1" rx="-15" font-size="100" width="5" alignment="center" height="1.5" color="#dddddd"></m-label>
-    <m-label onclick="toggleEnabled(event.currentTarget.parentNode)" content="enable" x="0" y="-5" z="1" rx="-15" font-size="100" width="5" alignment="center" height="1.5" color="#ffffff"></m-label>
-    <m-label onclick="resume(event.currentTarget.parentNode)" content="resume" x="5" y="-5" z="1" rx="-15" font-size="100" width="5" alignment="center" height="1.5" color="#dddddd"></m-label>
-    <m-label onclick="restart(event.currentTarget.parentNode)" content="restart" x="10" y="-5" z="1" rx="-15" font-size="100" width="5" alignment="center" height="1.5" color="#ffffff"></m-label>
+  <m-audio
+    id="my-audio"
+    class="some-audio-class"
+    src="https://www.daniloarantesf.me/assets/songs/song1.mp3"
+    debug="false"
+    loop="true"
+    enabled="true"
+    volume="1.5"
+    z="-3"
+  >
+    <m-label
+      onclick="pause(event.currentTarget.parentNode)"
+      content="pause"
+      x="-10"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#ffffff"
+    ></m-label>
+    <m-label
+      onclick="unpause(event.currentTarget.parentNode)"
+      content="unpause"
+      x="-5"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#dddddd"
+    ></m-label>
+    <m-label
+      onclick="toggleEnabled(event.currentTarget.parentNode)"
+      content="enable"
+      x="0"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#ffffff"
+    ></m-label>
+    <m-label
+      onclick="resume(event.currentTarget.parentNode)"
+      content="resume"
+      x="5"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#dddddd"
+    ></m-label>
+    <m-label
+      onclick="restart(event.currentTarget.parentNode)"
+      content="restart"
+      x="10"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#ffffff"
+    ></m-label>
   </m-audio>
 
   <!-- Spectrum Visualizer -->
-  <m-shader id="spectrumVisualizer" audio="my-audio" z="-3" x="12" rx="-10" width="10" height="10" frag="
+  <m-shader
+    id="spectrumVisualizer"
+    audio="my-audio"
+    z="-3"
+    x="12"
+    rx="-10"
+    width="10"
+    height="10"
+    frag="
   uniform sampler2D prgm3Texture;
 
   vec3 clamps(vec3 x) { return clamp(x, 0.042, 1.0); }
@@ -28,9 +105,11 @@
     vec4 prgm3 = texture2D(prgm3Texture, vec2(uv.x, uvy));
     gl_FragColor = prgm3;
   }
-">
+"
+  >
     <!-- prgm1Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
       vec3 hash33(vec3 p3) {
         p3 = fract(p3 * vec3(0.1031, 0.1030, 0.0973));
         p3 += dot(p3, p3.yxz + 19.19);
@@ -81,10 +160,12 @@
         float dither = h.x * h.y;
         col += dither * 0.04;
         gl_FragColor = vec4(col,1.0);
-      }">
+      }"
+    >
     </m-shader>
     <!-- prgm2Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
       uniform sampler2D prgm1Texture;
 
       vec3 hash33(vec3 p3) {
@@ -111,9 +192,11 @@
         }
         col *= 0.9;
         gl_FragColor = mix(texCol, col, 0.5);
-      }"></m-shader>
+      }"
+    ></m-shader>
     <!-- prgm3Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
       uniform sampler2D prgm2Texture;
 
       const float PI = acos(-1.0);
@@ -252,12 +335,21 @@
         color.xyz = toSRGB(color.xyz * 2.0);
         color = mix(color, color * v, 0.7);
         gl_FragColor = vec4(color.xyz, 1.0);
-      }">
+      }"
+    >
     </m-shader>
   </m-shader>
 
   <!-- Disco thingy -->
-  <m-shader id="discoThingy" audio="my-audio" z="-3" x="-12" rx="-10" width="10" height="10" frag="
+  <m-shader
+    id="discoThingy"
+    audio="my-audio"
+    z="-3"
+    x="-12"
+    rx="-10"
+    width="10"
+    height="10"
+    frag="
     precision highp float;
     uniform sampler2D prgm1Texture;
     uniform sampler2D prgm2Texture;
@@ -269,9 +361,11 @@
       vec3 color = prgm2.xyz;
       gl_FragColor = vec4(color, 1.0);
     }
-  ">
+  "
+  >
     <!-- prgm1Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
       const float PI = acos(-1.0);
       const float TAU = PI * 2.0;
       const float SQRT3 = sqrt(3.0);
@@ -400,10 +494,12 @@
         color.xyz *= cA.x * 0.25; //(1.0 - vec3(cA.x));
         gl_FragColor=clamp(color * fbmA * 2.0, 0.0, 1.0);
       }
-    ">
+    "
+    >
     </m-shader>
     <!-- prgm2Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
       precision highp float;
       uniform sampler2D prgm1Texture;
 
@@ -460,12 +556,24 @@
         }
         gl_FragColor = vec4(mix(color * color * Exposure, cc, 0.5), 1.0);
       }
-      ">
+      "
+    >
     </m-shader>
   </m-shader>
 
   <!-- Position Probe Shader -->
-  <m-shader id="flamingAutomata" audio="my-audio" z="4" x="0" y="-7.4" rx="90" width="25" height="10" probe="my-position-probe" frag="
+  <m-shader
+    id="flamingAutomata"
+    audio="my-audio"
+    z="4"
+    x="0"
+    y="-7.4"
+    rx="90"
+    width="25"
+    height="10"
+    probe="my-position-probe"
+    collision-interval="50"
+    frag="
   precision highp float;
   uniform sampler2D prgm3Texture;
 
@@ -474,11 +582,12 @@
     vec4 prgm3 = texture(prgm3Texture, uv);
     gl_FragColor = prgm3;
   }
-">
+"
+  >
     <!-- prgm1Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
     uniform sampler2D prgm1Texture;
-    uniform vec2 mouselerp;
     uniform vec2 mouse;
     const float PI = acos(-1.0);
     const float TAU = PI * 2.0;
@@ -585,7 +694,7 @@
       float t = time * 1.5;
       float o = osc(-0.1, 0.2, time, 0.0625);
       vec2 v2o = vec2(0.75 + o, 0.85 + o);
-      vec2 rawMouse = (mouselerp) * resolution.xy;
+      vec2 rawMouse = (mouse) * resolution.xy;
       vec2 infPattern = vec2(cos(t), sin(t) * cos(t));
       vec2 pattern = getPattern(0.4, 0.1, t);
       float transition = clamp(ssin(time * 0.05), 0.0, 1.0);
@@ -614,10 +723,12 @@
       gl_FragColor = mix(straightBrushedColor, averageColor, (fadeOut * cellSize.x * 0.25));
       gl_FragColor = clamp(vec4(0.0), vec4(1.0), gl_FragColor);
     }
-">
+"
+    >
     </m-shader>
     <!-- prgm2Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
     precision highp float;
 
     uniform sampler2D prgm1Texture;
@@ -752,9 +863,11 @@
       color.xyz = mix(findClosest(color.xyz * 255.0) / 255.0, color.xyz, 0.42);
       gl_FragColor = inside * (cellColor + color);
       gl_FragColor.a = 1.0;
-    }"></m-shader>
+    }"
+    ></m-shader>
     <!-- prgm3Texture -->
-    <m-shader frag="
+    <m-shader
+      frag="
     precision highp float;
 
     uniform sampler2D prgm2Texture;
@@ -803,11 +916,19 @@
       vec3 gB = gaussgrain(frameTime + 0.1) * 0.42;
       col *= 0.9; col.xyz += gA * gB * 0.0625;
       gl_FragColor = mix(prgm2, col, 0.3);
-    }"></m-shader>
+    }"
+    ></m-shader>
   </m-shader>
 
   <!-- Points Shader -->
-  <m-shader audio="my-audio" width="10" height="5" y="-4" z="-5" rx="90" vert="
+  <m-shader
+    audio="my-audio"
+    width="10"
+    height="5"
+    y="-4"
+    z="-5"
+    rx="90"
+    vert="
     varying float vIntensity;
     varying vec3 vPosition;
 
@@ -824,7 +945,8 @@
       vPosition.z += vIntensity * amplitude;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(vPosition, 1.0);
     }
-  " frag="
+  "
+    frag="
     varying float vIntensity;
 
     vec3 palette( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d ) {
@@ -847,7 +969,10 @@
 
       gl_FragColor = vec4(color, 1. - step(.5, smoothstep(.45, .5, dist)));
     }
-  " collide="false" type="points"></m-shader>
+  "
+    collide="false"
+    type="points"
+  ></m-shader>
 </m-group>
 
 <script>
