@@ -1,5 +1,7 @@
-<m-group x="30" sx="0.4" sy="0.4" rx="0" y="3">
-  <m-light type="spotlight" ry="45" rx="45" x="0" y="10" z="20"></m-light>
+<m-group  sx="0.4" sy="0.4" rx="0" y="3" z="-4">
+
+  <m-light type="spotlight" ry="45" rx="45" x="0" y="10"></m-light>
+
   <m-position-probe id="my-position-probe" x="0" z="4" range="17" interval="50"></m-position-probe>
   <m-audio
     id="my-audio"
@@ -82,7 +84,7 @@
   <m-shader
     id="spectrumVisualizer"
     audio="my-audio"
-    z="-3"
+    z="-7"
     x="12"
     rx="-10"
     width="10"
@@ -344,7 +346,7 @@
   <m-shader
     id="discoThingy"
     audio="my-audio"
-    z="-3"
+    z="-7"
     x="-12"
     rx="-10"
     width="10"
@@ -568,9 +570,11 @@
     z="4"
     x="0"
     y="-7.4"
+    sx="1.5"
+    sy="1"
     rx="90"
-    width="25"
-    height="10"
+    width="50"
+    height="30"
     probe="my-position-probe"
     collision-interval="50"
     frag="
@@ -597,7 +601,7 @@
     #define cPad        3.0, 3.0
     #define baseColor   0.01, 0.01, 0.01, 1.0
     #define mouseColor  0.1, 0.9, 0.7, 1.0
-    #define mouseRadius 64.0
+    #define mouseRadius 32.0
     #define fadeOut     0.0047
 
     const vec2 neighbours[8] = vec2[8](
@@ -852,14 +856,14 @@
       vec2 uv = vUv;
       float frameScale = 29.97;
       float frameTime = floor(time * frameScale) / frameScale;
-      vec3 gA = gaussgrain(frameTime) * 0.42;
-      vec3 gB = gaussgrain(frameTime + 0.1) * 0.42;
+      //vec3 gA = gaussgrain(frameTime) * 0.42;
+      //vec3 gB = gaussgrain(frameTime + 0.1) * 0.42;
       vec4 cellColor = vec4(baseColor);
       vec2 cellSize = vec2(cSize);
       vec2 cellPad = vec2(cPad);
       float inside = clamp(isPixelInside(gl_FragCoord.xy, cellSize, cellPad), 0.0, 1.0);
       vec4 color = texture(prgm1Texture, uv);
-      color.xyz += (gA + gB) * 1e-2;
+      // color.xyz += (gA + gB) * 1e-2;
       color.xyz = mix(findClosest(color.xyz * 255.0) / 255.0, color.xyz, 0.42);
       gl_FragColor = inside * (cellColor + color);
       gl_FragColor.a = 1.0;
@@ -912,9 +916,9 @@
         col += texture(prgm2Texture, uv) * w * 1.7;
         w *= 0.95;
       }
-      vec3 gA = gaussgrain(frameTime) * 0.42;
-      vec3 gB = gaussgrain(frameTime + 0.1) * 0.42;
-      col *= 0.9; col.xyz += gA * gB * 0.0625;
+      //vec3 gA = gaussgrain(frameTime) * 0.42;
+      //vec3 gB = gaussgrain(frameTime + 0.1) * 0.42;
+      //col *= 0.9; col.xyz += gA * gB * 0.0625;
       gl_FragColor = mix(prgm2, col, 0.3);
     }"
     ></m-shader>
