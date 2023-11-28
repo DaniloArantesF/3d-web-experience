@@ -1,4 +1,4 @@
-<m-group id="maze" x="-10"> </m-group>
+<m-group id="maze" x="35" z="-15"> </m-group>
 
 <script>
   const mazeContainer = document.getElementById("maze");
@@ -579,7 +579,7 @@
     static mazeHeightOffset = 0.5;
 
     constructor() {
-      this.gridSize = 4;
+      this.gridSize = 8;
       this.grid = [];
       this.playerCount = 0;
       this.createGrid();
@@ -644,7 +644,6 @@
 
       const elevatorAnimationInterval = null;
       mazeContainer.setAttribute("y", Maze.mazeHeightOffset);
-      mazeContainer.setAttribute("ry", "180");
       // this.createMazeGround();
       this.mazeGround = new MazeGround(this);
       // this.spawnElevator();

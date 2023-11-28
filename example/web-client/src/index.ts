@@ -130,6 +130,7 @@ export class App {
       [
         `${this.protocol}//${this.host}/mml-documents/showroom.html`,
         `${this.protocol}//${this.host}/mml-documents/shaders.html`,
+        `${this.protocol}//${this.host}/mml-documents/maze.html`
       ],
     );
 
