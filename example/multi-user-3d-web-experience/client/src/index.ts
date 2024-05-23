@@ -23,6 +23,26 @@ const app = new Networked3dWebExperienceClient(holder, {
     sprintAnimationFileUrl,
   },
   hdrJpgUrl,
-  mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/example-mml.html` }],
+  mmlDocuments: [
+    {
+      url: `${protocol}//${host}/mml-documents/simple-shaders.html`,
+      position: {
+        x: -30,
+        y: 0,
+        z: 10,
+      },
+    },
+    {
+      url: `${protocol}//${host}/mml-documents/complex-shaders.html`,
+    },
+    {
+      url: `${protocol}//${host}/mml-documents/texture-shader-test.html`,
+      position: {
+        x: 30,
+        y: 1,
+        z: 0,
+      },
+    },
+  ],
 });
 app.update();

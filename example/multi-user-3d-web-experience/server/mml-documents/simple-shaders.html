@@ -1,0 +1,18 @@
+<!-- Simple mouse test -->
+<m-group z="5">
+  <m-shader
+    rx="90"
+    width="20"
+    height="20"
+    y=".01"
+    frag="
+      uniform vec2 mouse;
+
+      void main() {
+        float length = step(distance(vUv, mouse), .05);
+        gl_FragColor = vec4(length, 0.0, 0.0, 1.0);
+      }
+    "
+    collision-interval="50"
+  ></m-shader>
+</m-group>
