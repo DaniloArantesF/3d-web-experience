@@ -43,6 +43,14 @@ const app = new Networked3dWebExperienceClient(holder, {
         z: 0,
       },
     },
+    {
+      url: `${protocol}//${host}/mml-documents/transparent-shader-test.html`,
+      position: {
+        x: 45,
+        y: 0,
+        z: 0,
+      },
+    },
   ],
 });
 app.update();

@@ -1,0 +1,35 @@
+<!-- Transparent test -->
+<m-group z="5">
+  <m-label
+    id="toggleTransparency"
+    y="10.5"
+    content="Toggle Transparency"
+    width="5"
+    alignment="center"
+    font-size="32"
+  ></m-label>
+  <m-shader
+    id="transparentShader"
+    width="10"
+    height="10"
+    y="5"
+    frag="
+      void main() {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 0.5);
+      }
+    "
+    collision-interval="50"
+  ></m-shader>
+</m-group>
+<m-label y="5" content="Hello World!" width="5" alignment="center" font-size="64"></m-label>
+
+<script>
+  const transparentShader = document.getElementById("transparentShader");
+  const toggleButton = document.getElementById("toggleTransparency");
+  let isTransparent = true;
+
+  toggleButton.addEventListener("click", () => {
+    isTransparent = !isTransparent;
+    transparentShader.setAttribute("transparent", isTransparent.toString());
+  });
+</script>
