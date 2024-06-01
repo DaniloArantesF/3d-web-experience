@@ -1,0 +1,91 @@
+<m-group id="cubes"></m-group>
+
+<m-label y="4" width="3" alignment="center" id="resetCubes" content="Switch Mesh Type"></m-label>
+<m-label y="2.5" width="3" alignment="center" id="addCubes" content="Add cubes"></m-label>
+<m-label y="1" width="3" alignment="center" id="removeCubes" content="Remove cubes"></m-label>
+<m-label
+  y="4"
+  x="-3.5"
+  width="3"
+  alignment="center"
+  id="cubeCount"
+  content="Cube Count: 0"
+></m-label>
+
+<m-group id="valueSelector">
+  <m-label y="6" x="-3.5" width="3" alignment="center" id="decreaseValue" content="-"></m-label>
+  <m-label y="6" x="0" width="3" alignment="center" id="currentValue" content="Value: 10"></m-label>
+  <m-label y="6" x="3.5" width="3" alignment="center" id="increaseValue" content="+"></m-label>
+</m-group>
+
+
+<script>
+  let operationValue = 10;
+  const container = document.getElementById("cubes");
+  const cubes = [];
+
+  // Operations
+  const addCubesButton = document.getElementById("addCubes");
+  const removeCubesButton = document.getElementById("removeCubes");
+  function addCubes() {
+    for (let i = 0; i < operationValue; i++) {
+      const cube = document.createElement("m-cube");
+      cube.setAttribute("x", Math.random() * 10 - 5);
+      cube.setAttribute("y", Math.random() * 10 + 0.5);
+      cube.setAttribute("z", Math.random() * 10 - 5);
+      cube.setAttribute("width", 0.5);
+      cube.setAttribute("height", 0.5);
+      cube.setAttribute("depth", 0.5);
+      cube.setAttribute("color", "blue");
+      cubes.push(cube);
+      container.append(cube);
+    }
+    updateCubeCount();
+  }
+
+  function removeCubes() {
+    let i = 0;
+    while (i < operationValue && cubes.length > 0) {
+      container.removeChild(cubes.pop());
+      i++;
+    }
+    updateCubeCount();
+  }
+
+  function changeMeshType() {
+    let i = 0;
+    while (i < cubes.length) {
+      const cube = cubes[cubes.length - i - 1];
+      const isInstanced = cube.getAttribute("instanced") === "true";
+      cube.setAttribute(!isInstanced);
+      i++;
+    }
+  }
+
+  addCubesButton.addEventListener("click", addCubes);
+  removeCubesButton.addEventListener("click", removeCubes);
+
+  // Value selector
+  const decreaseButton = document.getElementById("decreaseValue");
+  const increaseButton = document.getElementById("increaseValue");
+  const valueLabel = document.getElementById("currentValue");
+
+  decreaseButton.addEventListener("click", () => {
+    operationValue = Math.max(0, operationValue - 1);
+    valueLabel.setAttribute("content", "Value: " + operationValue);
+  });
+
+  increaseButton.addEventListener("click", () => {
+    operationValue = Math.min(10, operationValue + 1);
+    valueLabel.setAttribute("content", "Value: " + operationValue);
+  });
+
+  // Cube count
+  function updateCubeCount() {
+    const cubeCountLabel = document.getElementById("cubeCount");
+    cubeCountLabel.setAttribute("content", "Cube Count: " + cubes.length);
+  }
+</script>
+
+
+

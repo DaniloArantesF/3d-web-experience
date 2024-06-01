@@ -1,0 +1,89 @@
+<m-group y="3" x="-10">
+  <m-cube x="0" instanced="true">
+    <m-attr-anim
+      attr="x"
+      start="1"
+      end="2"
+      start-time="1000"
+      duration="500"
+      ping-pong="true"
+      easing="easeInOutCubic"
+    ></m-attr-anim>
+  </m-cube>
+
+  <m-cube x="-4" instanced="true">
+    <m-attr-anim
+      attr="y"
+      start="1"
+      end="2"
+      start-time="1000"
+      duration="500"
+      ping-pong="true"
+      easing="easeInOutCubic"
+    ></m-attr-anim>
+  </m-cube>
+
+  <m-cube x="-8" instanced="false" color="red">
+    <m-attr-anim
+      attr="sx"
+      start="1"
+      end="2"
+      start-time="1000"
+      duration="500"
+      ping-pong="true"
+      easing="easeInOutCubic"
+    ></m-attr-anim>
+  </m-cube>
+
+  <m-cube x="-12" instanced="false" color="red">
+    <m-attr-anim
+      attr="sy"
+      start="1"
+      end="2"
+      start-time="1000"
+      duration="500"
+      ping-pong="true"
+      easing="easeInOutCubic"
+    ></m-attr-anim>
+  </m-cube>
+</m-group>
+
+<m-group y="2">
+  <m-model src="https://files.daarfi.me/cobblestone-wall.glb" x="-4" instanced="true">
+    <m-attr-anim
+      attr="x"
+      start="-2"
+      end="-4"
+      start-time="1000"
+      duration="500"
+      ping-pong="true"
+      easing="easeInOutCubic"
+    ></m-attr-anim>
+  </m-model>
+  <m-model src="https://files.daarfi.me/cobblestone-wall.glb" x="1" instanced="true">
+    <m-attr-anim
+      attr="y"
+      start="1"
+      end="2"
+      start-time="1000"
+      duration="500"
+      ping-pong="true"
+      easing="easeInOutCubic"
+    ></m-attr-anim>
+  </m-model>
+  <m-model src="https://files.daarfi.me/cobblestone-wall.glb" x="4" instanced="true">
+    <m-attr-anim
+      attr="z"
+      start="1"
+      end="2"
+      start-time="1000"
+      duration="500"
+      ping-pong="true"
+      easing="easeInOutCubic"
+    ></m-attr-anim>
+  </m-model>
+</m-group>
+
+<script>
+  const element = document.querySelector("#cube2");
+</script>

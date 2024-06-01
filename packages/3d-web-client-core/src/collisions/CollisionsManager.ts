@@ -34,7 +34,7 @@ export type CollisionMeshState = {
 };
 
 export class CollisionsManager {
-  private debug: boolean = false;
+  private debug: boolean = true;
   private scene: Scene;
   private tempVector: Vector3 = new Vector3();
   private tempVector2: Vector3 = new Vector3();
