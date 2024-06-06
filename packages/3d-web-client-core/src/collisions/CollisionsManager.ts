@@ -31,10 +31,11 @@ export type CollisionMeshState = {
   meshBVH: MeshBVH;
   debugGroup?: Group;
   trackCollisions: boolean;
+  instanceParent?: Group;
 };
 
 export class CollisionsManager {
-  private debug: boolean = true;
+  private debug: boolean = false;
   private scene: Scene;
   private tempVector: Vector3 = new Vector3();
   private tempVector2: Vector3 = new Vector3();
@@ -88,7 +89,11 @@ export class CollisionsManager {
     return [minimumDistance, minimumNormal, minimumHit];
   }
 
-  private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
+  private createCollisionMeshState(
+    group: Group,
+    trackCollisions: boolean,
+    instanceParent?: Group,
+  ): CollisionMeshState {
     const geometries: Array<BufferGeometry> = [];
     group.updateWorldMatrix(true, false);
     const invertedRootMatrix = this.tempMatrix.copy(group.matrixWorld).invert();
@@ -119,11 +124,18 @@ export class CollisionsManager {
     newBufferGeometry.computeVertexNormals();
     const meshBVH = new MeshBVH(newBufferGeometry);
 
+    // Update the matrix world of the group if the element is instanced
+    if (instanceParent) {
+      instanceParent.updateWorldMatrix(true, false);
+      group.matrixWorld.copy(instanceParent.matrixWorld);
+    }
+
     const meshState: CollisionMeshState = {
       source: group,
       meshBVH,
       matrix: group.matrixWorld.clone(),
       trackCollisions,
+      instanceParent,
     };
     if (this.debug) {
       // Have to cast to add the boundsTree property to the geometry so that the MeshBVHHelper can find it
@@ -148,21 +160,41 @@ export class CollisionsManager {
   }
 
   public addMeshesGroup(group: Group, mElement?: MElement): void {
+    const isInstance = mElement?.getInstanceIndex() !== undefined;
+    let parentGroup: Group | undefined;
+
     if (mElement) {
       this.collisionTrigger.addCollider(group, mElement);
+      if (isInstance) {
+        parentGroup = mElement.getContainer();
+      }
     }
-    const meshState = this.createCollisionMeshState(group, mElement !== undefined);
+
+    const meshState = this.createCollisionMeshState(group, mElement !== undefined, parentGroup);
     if (meshState.debugGroup) {
       this.scene.add(meshState.debugGroup);
     }
     this.collisionMeshState.set(group, meshState);
   }
 
+  public setInstancedMeshesGroupParent(group: Group, parent: Group): void {
+    const meshState = this.collisionMeshState.get(group);
+    if (meshState) {
+      meshState.instanceParent = parent;
+    }
+  }
+
   public updateMeshesGroup(group: Group): void {
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
-      group.updateWorldMatrix(true, false);
+      if (meshState.instanceParent) {
+        meshState.instanceParent.updateWorldMatrix(true, false);
+        group.matrixWorld.copy(meshState.instanceParent.matrixWorld);
+      } else {
+        group.updateWorldMatrix(true, false);
+      }
       meshState.matrix.copy(group.matrixWorld);
+
       if (meshState.debugGroup) {
         group.matrixWorld.decompose(
           meshState.debugGroup.position,

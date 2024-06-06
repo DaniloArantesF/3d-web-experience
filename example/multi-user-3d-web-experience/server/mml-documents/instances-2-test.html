@@ -1,5 +1,5 @@
-<m-group y="3" x="-10">
-  <m-cube x="0" instanced="true">
+<m-group id="cubes" y="3" x="-10">
+  <!-- <m-cube x="0" instanced="true">
     <m-attr-anim
       attr="x"
       start="1"
@@ -23,7 +23,7 @@
     ></m-attr-anim>
   </m-cube>
 
-  <m-cube x="-8" instanced="false" color="red">
+  <m-cube x="-8" instanced="true" color="red">
     <m-attr-anim
       attr="sx"
       start="1"
@@ -35,7 +35,7 @@
     ></m-attr-anim>
   </m-cube>
 
-  <m-cube x="-12" instanced="false" color="red">
+  <m-cube x="-12" instanced="true" color="blue">
     <m-attr-anim
       attr="sy"
       start="1"
@@ -45,10 +45,44 @@
       ping-pong="true"
       easing="easeInOutCubic"
     ></m-attr-anim>
-  </m-cube>
+  </m-cube> -->
 </m-group>
+<m-cube></m-cube>
+<script>
+  const cubesGroup = document.getElementById("cubes");
+  const cubeCount = 50;
+  const animAttrs = ["x", "y", "z", "sx", "sy", "sz"];
+  function createAnimElement(container) {
+    const animElement = document.createElement("m-attr-anim");
+    animElement.setAttribute("attr", animAttrs[Math.floor(Math.random() * animAttrs.length)]);
+    animElement.setAttribute("start", "1");
+    animElement.setAttribute("end", "2");
+    animElement.setAttribute("start-time", "1000");
+    animElement.setAttribute("duration", "500");
+    animElement.setAttribute("ping-pong", "true");
+    animElement.setAttribute("easing", "easeInOutCubic");
+    container.appendChild(animElement);
+  }
 
-<m-group y="2">
+  function createCube() {
+    const cubeElement = document.createElement("m-cube");
+    cubeElement.setAttribute("y", Math.floor(Math.random() * cubeCount / 2));
+    cubeElement.setAttribute("x", Math.floor(Math.random() * cubeCount / 2));
+    cubeElement.setAttribute("instanced", "true");
+    createAnimElement(cubeElement);
+
+    cubeElement.addEventListener('click', (event) => {
+      console.log(event);
+    })
+    return cubeElement;
+  }
+
+  for (let i = 0; i < cubeCount; i++) {
+    cubesGroup.appendChild(createCube());
+  }
+</script>
+
+<!-- <m-group y="2">
   <m-model src="https://files.daarfi.me/cobblestone-wall.glb" x="-4" instanced="true">
     <m-attr-anim
       attr="x"
@@ -82,8 +116,4 @@
       easing="easeInOutCubic"
     ></m-attr-anim>
   </m-model>
-</m-group>
-
-<script>
-  const element = document.querySelector("#cube2");
-</script>
+</m-group> -->

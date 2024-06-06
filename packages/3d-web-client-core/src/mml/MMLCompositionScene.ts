@@ -10,6 +10,7 @@ import {
   PromptProps,
   ChatProbe,
   LoadingProgressManager,
+  InstancedMeshManager,
 } from "mml-web";
 import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
@@ -35,6 +36,7 @@ export class MMLCompositionScene {
   private readonly chatProbes = new Set<ChatProbe>();
   private readonly clickTrigger: MMLClickTrigger;
   private readonly loadingProgressManager: LoadingProgressManager;
+  private readonly instancedMeshManager: InstancedMeshManager;
 
   constructor(private config: MMLCompositionSceneConfig) {
     this.group = new Group();
@@ -48,6 +50,7 @@ export class MMLCompositionScene {
     this.interactionManager = interactionManager;
     this.interactionListener = interactionListener;
     this.loadingProgressManager = new LoadingProgressManager();
+    this.instancedMeshManager = InstancedMeshManager.getInstance(this.config.scene);
 
     this.mmlScene = {
       getAudioListener: () => this.config.audioListener,
@@ -58,7 +61,14 @@ export class MMLCompositionScene {
       addCollider: (object: Object3D, mElement: MElement) => {
         this.config.collisionsManager.addMeshesGroup(object as Group, mElement);
       },
-      updateCollider: (object: Object3D) => {
+      updateCollider: (object: Object3D, mElement: MElement) => {
+        const isInstance = mElement.getInstanceIndex() !== undefined;
+        if (isInstance) {
+          this.config.collisionsManager.setInstancedMeshesGroupParent(
+            object as Group,
+            mElement.getContainer(),
+          );
+        }
         this.config.collisionsManager.updateMeshesGroup(object as Group);
       },
       removeCollider: (object: Object3D) => {
@@ -88,6 +98,9 @@ export class MMLCompositionScene {
       },
       getLoadingProgressManager: () => {
         return this.loadingProgressManager;
+      },
+      getInstancedMeshManager: () => {
+        return this.instancedMeshManager;
       },
     };
 
