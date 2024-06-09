@@ -31,7 +31,7 @@ const app = new Networked3dWebExperienceClient(holder, {
     // },
     {
       url: `${protocol}//${host}/mml-documents/instances-2-test.html`,
-      position: { x: -10, y: 0, z: 0 },
+      position: { x: 0, y: 0, z: 0 },
     },
   ],
 });

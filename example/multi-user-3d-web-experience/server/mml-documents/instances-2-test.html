@@ -1,56 +1,9 @@
-<m-group id="cubes" y="3" x="-10">
-  <!-- <m-cube x="0" instanced="true">
-    <m-attr-anim
-      attr="x"
-      start="1"
-      end="2"
-      start-time="1000"
-      duration="500"
-      ping-pong="true"
-      easing="easeInOutCubic"
-    ></m-attr-anim>
-  </m-cube>
+<m-group id="cubes"></m-group>
+<m-group id="wall"></m-group>
 
-  <m-cube x="-4" instanced="true">
-    <m-attr-anim
-      attr="y"
-      start="1"
-      end="2"
-      start-time="1000"
-      duration="500"
-      ping-pong="true"
-      easing="easeInOutCubic"
-    ></m-attr-anim>
-  </m-cube>
-
-  <m-cube x="-8" instanced="true" color="red">
-    <m-attr-anim
-      attr="sx"
-      start="1"
-      end="2"
-      start-time="1000"
-      duration="500"
-      ping-pong="true"
-      easing="easeInOutCubic"
-    ></m-attr-anim>
-  </m-cube>
-
-  <m-cube x="-12" instanced="true" color="blue">
-    <m-attr-anim
-      attr="sy"
-      start="1"
-      end="2"
-      start-time="1000"
-      duration="500"
-      ping-pong="true"
-      easing="easeInOutCubic"
-    ></m-attr-anim>
-  </m-cube> -->
-</m-group>
-<m-cube></m-cube>
 <script>
   const cubesGroup = document.getElementById("cubes");
-  const cubeCount = 50;
+  const cubeCount = 20;
   const animAttrs = ["x", "y", "z", "sx", "sy", "sz"];
   function createAnimElement(container) {
     const animElement = document.createElement("m-attr-anim");
@@ -64,56 +17,47 @@
     container.appendChild(animElement);
   }
 
+  function createWall(x, y, z) {
+    const wallElement = document.createElement("m-model");
+    wallElement.setAttribute("src", "https://files.daarfi.me/cobblestone-wall.glb");
+    wallElement.setAttribute("x", x);
+    wallElement.setAttribute("y", y);
+    wallElement.setAttribute("z", z);
+    wallElement.setAttribute("instanced", "true");
+    wallElement.setAttribute("collision-interval", "200");
+    return wallElement;
+  }
+
   function createCube() {
     const cubeElement = document.createElement("m-cube");
-    cubeElement.setAttribute("y", Math.floor(Math.random() * cubeCount / 2));
-    cubeElement.setAttribute("x", Math.floor(Math.random() * cubeCount / 2));
+    cubeElement.setAttribute("y", Math.floor(Math.random() * cubeCount));
+    cubeElement.setAttribute("x", Math.floor(Math.random() * cubeCount) + cubeCount / 2);
+    cubeElement.setAttribute("z", Math.floor(Math.random() * cubeCount) + cubeCount / 2);
     cubeElement.setAttribute("instanced", "true");
     createAnimElement(cubeElement);
 
-    cubeElement.addEventListener('click', (event) => {
+    cubeElement.addEventListener("click", (event) => {
       console.log(event);
-    })
+    });
     return cubeElement;
   }
 
   for (let i = 0; i < cubeCount; i++) {
     cubesGroup.appendChild(createCube());
   }
-</script>
 
-<!-- <m-group y="2">
-  <m-model src="https://files.daarfi.me/cobblestone-wall.glb" x="-4" instanced="true">
-    <m-attr-anim
-      attr="x"
-      start="-2"
-      end="-4"
-      start-time="1000"
-      duration="500"
-      ping-pong="true"
-      easing="easeInOutCubic"
-    ></m-attr-anim>
-  </m-model>
-  <m-model src="https://files.daarfi.me/cobblestone-wall.glb" x="1" instanced="true">
-    <m-attr-anim
-      attr="y"
-      start="1"
-      end="2"
-      start-time="1000"
-      duration="500"
-      ping-pong="true"
-      easing="easeInOutCubic"
-    ></m-attr-anim>
-  </m-model>
-  <m-model src="https://files.daarfi.me/cobblestone-wall.glb" x="4" instanced="true">
-    <m-attr-anim
-      attr="z"
-      start="1"
-      end="2"
-      start-time="1000"
-      duration="500"
-      ping-pong="true"
-      easing="easeInOutCubic"
-    ></m-attr-anim>
-  </m-model>
-</m-group> -->
+  const wallGroup = document.getElementById("wall");
+  for (let i = 0; i < cubeCount; i++) {
+    const wall1 = createWall(0, 0, i * 2 + 0.75);
+    wall1.setAttribute("ry", 90);
+    const wall2 = createWall(cubeCount * 2, 0, i * 2 + 0.75);
+    wall2.setAttribute("ry", 90);
+    const wall3 = createWall(i * 2 + 0.75, 0, 0);
+    const wall4 = createWall(i * 2 + 0.75, 0, cubeCount * 2);
+
+    wallGroup.appendChild(wall1);
+    wallGroup.appendChild(wall2);
+    wallGroup.appendChild(wall3);
+    wallGroup.appendChild(wall4);
+  }
+</script>

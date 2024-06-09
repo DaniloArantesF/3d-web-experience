@@ -64,10 +64,7 @@ export class MMLCompositionScene {
       updateCollider: (object: Object3D, mElement: MElement) => {
         const isInstance = mElement.getInstanceIndex() !== undefined;
         if (isInstance) {
-          this.config.collisionsManager.setInstancedMeshesGroupParent(
-            object as Group,
-            mElement.getContainer(),
-          );
+          this.config.collisionsManager.setInstancedMeshesGroupParent(object as Group, mElement);
         }
         this.config.collisionsManager.updateMeshesGroup(object as Group);
       },
