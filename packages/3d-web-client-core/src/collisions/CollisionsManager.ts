@@ -128,6 +128,8 @@ export class CollisionsManager {
     const instanceMatrix = parentElement?.getInstanceMatrix();
     if (instanceIndex > -1 && instanceMatrix) {
       group.matrixWorld.copy(instanceMatrix);
+    } else {
+      group.updateWorldMatrix(true, false);
     }
 
     const meshState: CollisionMeshState = {
@@ -164,7 +166,6 @@ export class CollisionsManager {
     if (mElement) {
       this.collisionTrigger.addCollider(group, mElement);
     }
-
     const meshState = this.createCollisionMeshState(group, mElement !== undefined, mElement);
     if (meshState.debugGroup) {
       this.scene.add(meshState.debugGroup);

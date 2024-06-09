@@ -50,7 +50,6 @@ export class MMLCompositionScene {
     this.interactionManager = interactionManager;
     this.interactionListener = interactionListener;
     this.loadingProgressManager = new LoadingProgressManager();
-    this.instancedMeshManager = InstancedMeshManager.getInstance(this.config.scene);
 
     this.mmlScene = {
       getAudioListener: () => this.config.audioListener,
@@ -102,6 +101,7 @@ export class MMLCompositionScene {
     };
 
     this.clickTrigger = MMLClickTrigger.init(this.config.targetElement, this.mmlScene as IMMLScene);
+    this.instancedMeshManager = InstancedMeshManager.getInstance(this.mmlScene);
   }
 
   onChatMessage(message: string) {
