@@ -1,0 +1,562 @@
+<m-group id="race-track-group" x="-2.5"></m-group>
+
+<m-group id="info-group" x="-10.5">
+  <m-group id="winner" y="0.53" z="4.2" rx="45">
+    <m-cube color="#505050" width="4.5" height="0.65" depth="0.1" z="0.06"></m-cube>
+    <m-label
+      id="winner-label"
+      content=""
+      ry="180"
+      padding="0"
+      alignment="center"
+      font-color="#eeeeee"
+      color="hsl(150, 0%, 30%)"
+      width="4.4"
+      height="0.5"
+      font-size="33"
+    ></m-label>
+  </m-group>
+  <m-group id="attributes-label-group" y="0" z="4.3" ry="180">
+    <m-cube
+      id="attributes-label-frame"
+      color="#88ccff"
+      width="4.4"
+      height="3.0"
+      depth="0.09"
+      z="-0.155"
+    ></m-cube>
+    <m-cube
+      id="attributes-label-frame-border"
+      color="#212121"
+      width="4.5"
+      height="7.35"
+      depth="0.1"
+      z="-0.156"
+    ></m-cube>
+    <m-label
+      id="countdown-label"
+      content=""
+      padding="0"
+      alignment="center"
+      font-color="#eeeeee"
+      color="hsl(150, 0%, 30%)"
+      width="4.4"
+      height="2.65"
+      font-size="200"
+      x="0"
+      y="2.23"
+      z="-0.099"
+      visible="false"
+    ></m-label>
+  </m-group>
+</m-group>
+
+<script>
+  const raceTrackGroup = document.getElementById("race-track-group");
+  const winnerLabel = document.getElementById("winner-label");
+  const countdownLabel = document.getElementById("countdown-label");
+
+  let countDownSound = null;
+  let racing = false;
+
+  const raceCars = new Map();
+  const raceCarsSound = new Map();
+
+  const carScale = 0.5;
+  const trackLength = 25;
+
+  const raceDuration = 3900;
+  const raceSoundDuration = 4000;
+  const countdownSoundDuration = 4000;
+
+  const easings = ["easeInOutQuad", "easeInOutCubic"];
+  const availableCars = ["yellow", "green", "blue", "pink", "red"];
+  const sat = "100%";
+  const light = "90%";
+  const carColors = [
+    `hsl(72, ${sat}, ${light})`,
+    `hsl(144, ${sat}, ${light})`,
+    `hsl(216, ${sat}, ${light})`,
+    `hsl(288, ${sat}, ${light})`,
+    `hsl(380, ${sat}, ${light})`,
+  ];
+
+  let carIndex = 0;
+  let winner = "";
+  let winnerIndex = 0;
+
+  const attributesLabelGroup = document.getElementById("attributes-label-group");
+  const attributesLabelFrame = document.getElementById("attributes-label-frame");
+  const attributesLabelBorder = document.getElementById("attributes-label-frame-border");
+  const currentAttributeLabels = new Map();
+  const labelWidth = 4.3;
+  const labelHeight = 0.26;
+  const borderWidth = 0.17;
+  const labelsYOffset = 0.8;
+
+  let winnerAnimation = null;
+
+  // interaction buttons ============================================
+  class InteractionButton {
+    baseModelURL = "/assets/playground/button_base.glb";
+    playButtonOnModelURL = "/assets/playground/play_button_on.glb";
+    playButtonOffModelURL = "/assets/playground/play_button_off.glb";
+    questionButtonOnModelURL = "/assets/playground/question_button_on.glb";
+    questionButtonOffModelURL = "/assets/playground/question_button_off.glb";
+    buttonSoundURL = "/assets/playground/button_sfx.mp3";
+
+    animDuration = 210;
+    buttonSoundDuration = 1200;
+    offset = 0.03;
+    easing = "easeInOutCubic";
+
+    infoSound = null;
+    infoSoundDuration = 0;
+    infoSoundCanPlay = true;
+    buttonSoundCanPlay = true;
+
+    group = document.createElement("m-group");
+    base = document.createElement("m-model");
+    buttonOn = document.createElement("m-model");
+    buttonOff = document.createElement("m-model");
+    buttonSound = document.createElement("m-audio");
+
+    constructor(x, y, z, yRotation, parentGroup) {
+      this.base.setAttribute("src", this.baseModelURL);
+      this.transform(this.group, x, y, z, yRotation);
+      this.group.appendChild(this.base);
+      parentGroup.appendChild(this.group);
+      this.setupButtonSound();
+      return this;
+    }
+
+    setupPlay(callBackFunction) {
+      this.buttonOn.setAttribute("src", this.playButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.playButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            callBackFunction();
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+      });
+    }
+
+    setupInfo(infoSoundURL, infoSoundDuration, infoSoundVolume) {
+      this.buttonOn.setAttribute("src", this.questionButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.questionButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.infoSound = document.createElement("m-audio");
+      this.infoSound.setAttribute("y", 12);
+      this.infoSound.setAttribute("rx", 90);
+      this.infoSound.setAttribute("cone-angle", 90);
+      this.infoSound.setAttribute("cone-falloff-angle", 120);
+      this.infoSound.setAttribute("loop", false);
+      this.infoSound.setAttribute("debug", false);
+      this.infoSound.setAttribute("src", infoSoundURL);
+      this.infoSound.setAttribute("volume", 0);
+      this.infoSound.setAttribute("start-time", document.timeline.currentTime - infoSoundDuration);
+      this.infoSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.infoSound);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            setTimeout(() => this.turnOn(), infoSoundDuration);
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+        setTimeout(() => {
+          this.playInfoSound(infoSoundDuration, infoSoundVolume);
+        }, this.buttonSoundDuration * 0.6667);
+      });
+    }
+
+    turnOff() {
+      this.swap(this.buttonOn, this.buttonOff);
+    }
+
+    turnOn() {
+      this.swap(this.buttonOff, this.buttonOn);
+    }
+
+    pushButtonAnim() {
+      this.animateButton(this.buttonOn, "y", 0, -this.offset, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", 0, this.offset, this.animDuration, this.easing);
+    }
+
+    releaseButtonAnim() {
+      this.animateButton(this.buttonOn, "y", -this.offset, 0, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", this.offset, 0, this.animDuration, this.easing);
+    }
+
+    playInfoSound(infoSoundDuration, infoSoundVolume) {
+      if (this.infoSoundCanPlay === false || this.infoSound === null) {
+        return;
+      }
+      this.infoSoundCanPlay = false;
+      const now = document.timeline.currentTime;
+      this.infoSound.setAttribute("volume", infoSoundVolume);
+      this.infoSound.setAttribute("start-time", now);
+      this.infoSound.setAttribute("pause-time", now + infoSoundDuration);
+      setTimeout(() => {
+        this.infoSound.setAttribute("volume", 0);
+        this.infoSoundCanPlay = true;
+      }, infoSoundDuration);
+    }
+
+    playButtonSound() {
+      if (this.buttonSoundCanPlay === false) {
+        return;
+      }
+      this.buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      this.buttonSound.setAttribute("volume", 2);
+      this.buttonSound.setAttribute("start-time", now);
+      this.buttonSound.setAttribute("pause-time", now + this.buttonSoundDuration);
+      setTimeout(() => {
+        this.buttonSound.setAttribute("volume", 0);
+        this.buttonSoundCanPlay === true;
+      }, this.buttonSoundDuration);
+    }
+
+    transform(element, x, y, z, ry) {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+      element.setAttribute("ry", ry);
+    }
+
+    scale(element, size) {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    }
+
+    swap(elementA, elementB) {
+      this.scale(elementB, 1.0);
+      this.scale(elementA, 0.001);
+    }
+
+    setupButtonSound() {
+      this.buttonSound.setAttribute("y", 1.2);
+      this.buttonSound.setAttribute("loop", false);
+      this.buttonSound.setAttribute("debug", false);
+      this.buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      this.buttonSound.setAttribute("volume", 0);
+      this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
+      this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.buttonSound);
+    }
+
+    animateButton(element, attr, start, end, duration, easing) {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    }
+  }
+
+  const infoButton = new InteractionButton(-8, 0, -1.5, 0, raceTrackGroup);
+  infoButton.setupInfo("/assets/playground/placeholder_info_audio.mp3", 4500, 3);
+
+  const playButton = new InteractionButton(-8.5, 0, -1.5, 0, raceTrackGroup);
+  playButton.setupPlay(play);
+  // ================================================================
+
+  // auxiliary functions ======================================================
+  function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function getRandomElement(array) {
+    const randomIndex = Math.floor(Math.random() * array.length);
+    return array[randomIndex];
+  }
+
+  function animate(element, attr, start, end, duration, easing) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    setTimeout(() => {
+      element.setAttribute(attr, end);
+      element.removeChild(anim);
+    }, duration);
+    return anim;
+  }
+
+  function highlightElement(element) {
+    const color = element.getAttribute("color");
+    const hue = parseInt(color.replace("hsl(", "").split(",")[0]);
+    element.setAttribute("color", `hsl(${hue}, 90%, 80%)`);
+    setTimeout(() => element.setAttribute("color", color), 160);
+  }
+  // ==========================================================================
+
+  function createCountDownSound() {
+    countDownSound = document.createElement("m-audio");
+    countDownSound.setAttribute("src", "/assets/playground/countdown.mp3");
+    countDownSound.setAttribute("loop", false);
+    countDownSound.setAttribute("start-time", document.timeline.currentTime - 4100);
+    countDownSound.setAttribute("pause-time", document.timeline.currentTime - 100);
+    countDownSound.setAttribute("volume", 0);
+    raceTrackGroup.appendChild(countDownSound);
+  }
+
+  function createTrack() {
+    const track = document.createElement("m-cube");
+    track.setAttribute("color", "#424242");
+    track.setAttribute("width", trackLength);
+    track.setAttribute("height", 0.1);
+    track.setAttribute("depth", carScale * 10);
+    track.setAttribute("y", 0.25);
+    track.setAttribute("z", carScale * 3.1);
+    checkered = document.createElement("m-image");
+    checkered.setAttribute("color", "#ffffff");
+    checkered.setAttribute("src", "/assets/playground/checkered.jpg");
+    checkered.setAttribute("width", carScale * 10);
+    checkered.setAttribute("height", 1.7);
+    checkered.setAttribute("x", trackLength / 2 - 1.4);
+    checkered.setAttribute("y", 0.065);
+    checkered.setAttribute("rx", -90);
+    checkered.setAttribute("rz", 90);
+    checkered.setAttribute("opacity", 0.3);
+    track.appendChild(checkered);
+    raceTrackGroup.appendChild(track);
+  }
+
+  function createRacingSound(xPos, yPos, zPos) {
+    const now = document.timeline.currentTime;
+    const racingSound = document.createElement("m-audio");
+    racingSound.setAttribute("src", "/assets/playground/racing.mp3");
+    racingSound.setAttribute("loop", false);
+    racingSound.setAttribute("start-time", now - raceSoundDuration - 100);
+    racingSound.setAttribute("pause-time", now - 100);
+    racingSound.setAttribute("volume", 0);
+    racingSound.setAttribute("x", xPos);
+    racingSound.setAttribute("y", yPos);
+    racingSound.setAttribute("z", zPos);
+    return racingSound;
+  }
+
+  function createCars() {
+    while (carIndex < availableCars.length) {
+      const xPos = -trackLength / 2 + 1;
+      const yPos = 0.3;
+      const zPos = carIndex * carScale * 2 - carScale * 0.75;
+
+      if (!raceCarsSound.has(carIndex)) {
+        raceCarsSound.set(carIndex, createRacingSound([xPos, yPos, zPos]));
+      }
+
+      const carColor = availableCars[carIndex];
+      const carURL = `/assets/playground/f1_race_car_${carColor}.glb`;
+      const carSound = raceCarsSound.get(carIndex);
+
+      const car = document.createElement("m-model");
+      car.setAttribute("src", carURL);
+      car.setAttribute("anim", carURL);
+      car.setAttribute("anim-enabled", false);
+      car.setAttribute("sx", carScale);
+      car.setAttribute("sy", carScale);
+      car.setAttribute("sz", carScale);
+      car.setAttribute("x", xPos);
+      car.setAttribute("y", yPos);
+      car.setAttribute("z", zPos);
+      car.setAttribute("collide", false);
+      raceCars.set(carIndex, car);
+
+      raceTrackGroup.appendChild(car);
+      raceTrackGroup.appendChild(carSound);
+      carIndex++;
+    }
+  }
+
+  function playCountdownSound() {
+    countdownLabel.setAttribute("visible", true);
+    const now = document.timeline.currentTime;
+    countDownSound.setAttribute("start-time", now);
+    countDownSound.removeAttribute("pause-time");
+    countDownSound.setAttribute("volume", 1);
+    setTimeout(() => {
+      countDownSound.setAttribute("pause-time", now);
+      countDownSound.setAttribute("volume", 0);
+    }, countdownSoundDuration);
+    setTimeout(() => {
+      countdownLabel.setAttribute("content", "3");
+      setTimeout(() => countdownLabel.setAttribute("content", "2"), 1000);
+      setTimeout(() => countdownLabel.setAttribute("content", "1"), 2000);
+      setTimeout(() => countdownLabel.setAttribute("content", "GO"), 2750);
+    }, 500);
+  }
+
+  function playCarSound(carIndex, time) {
+    const now = document.timeline.currentTime;
+    const timeOffset = raceDuration - time;
+    const sound = raceCarsSound.get(carIndex);
+    sound.setAttribute("start-time", now + timeOffset);
+    sound.setAttribute("pause-time", now + timeOffset + raceSoundDuration);
+    sound.setAttribute("volume", 1);
+    const startX = -trackLength / 2 + 1;
+    const endX = trackLength / 2 - 1.5;
+    animate(sound, "x", startX, endX, time, getRandomElement(easings));
+  }
+
+  function stopCarSound(carIndex) {
+    const now = document.timeline.currentTime;
+    const sound = raceCarsSound.get(carIndex);
+    sound.setAttribute("volume", 0);
+    sound.setAttribute("start-time", now - raceSoundDuration - 100);
+    sound.setAttribute("pause-time", now - 100);
+  }
+
+  function createLabel(str, amount, index, color) {
+    const y = amount * labelHeight - index * labelHeight;
+    const frameHeight = (amount + 1) * labelHeight;
+    const frameY = y - 0.5;
+    const borderHeight = frameHeight + borderWidth;
+
+    const firstOrLast = index === amount - 1 || index === 0;
+
+    attributesLabelFrame.setAttribute("width", labelWidth);
+    attributesLabelFrame.setAttribute("height", frameHeight);
+    attributesLabelFrame.setAttribute("y", frameHeight / 2 + borderWidth + labelsYOffset + frameY);
+    attributesLabelBorder.setAttribute("width", labelWidth + borderWidth);
+    attributesLabelBorder.setAttribute("height", borderHeight);
+    attributesLabelBorder.setAttribute(
+      "y",
+      borderHeight / 2 + borderWidth / 2 + labelsYOffset + frameY,
+    );
+
+    if (str.includes("/assets/playground/")) {
+      str = str.replace("/assets/playground/", "https://mml.io/");
+    }
+
+    const label = document.createElement("m-label");
+    label.setAttribute("font-size", 22);
+    label.setAttribute("color", color);
+    label.setAttribute("content", firstOrLast ? ` ${str}` : `    ${str}`);
+    label.setAttribute("padding", 0);
+    label.setAttribute("alignment", "left");
+    label.setAttribute("width", labelWidth);
+    label.setAttribute("height", 0.3);
+    label.setAttribute("y", y + labelsYOffset);
+    label.setAttribute("z", -0.1);
+    currentAttributeLabels.set(index, label);
+    return label;
+  }
+
+  function createLabels(attributes, color) {
+    currentAttributeLabels.forEach((label) => label.remove());
+    currentAttributeLabels.clear();
+    for (let i = 0; i < attributes.length; i++) {
+      const label = createLabel(attributes[i], attributes.length, i, color);
+      attributesLabelGroup.appendChild(label);
+    }
+  }
+
+  function updateAttributesLabel(color) {
+    const attributes = [];
+    for (const attr of winnerAnimation.getAttributeNames()) {
+      const val = winnerAnimation.getAttribute(attr);
+      attributes.push(`${attr}="${val}"`);
+    }
+    attributes.unshift("<m-attr-anim");
+    attributes.push("></m-attr-anim>");
+    createLabels(attributes, color);
+  }
+
+  function startRace() {
+    let smallestTime = 999999999;
+    const startX = -trackLength / 2 + 1;
+    const endX = trackLength / 2 - 1.5;
+    raceCars.forEach((car, index) => {
+      const time = getRandomInt(raceDuration - raceDuration * 0.1, raceDuration);
+      const easing = getRandomElement(easings);
+      const sound = raceCarsSound.get(index);
+      car.setAttribute("anim-enabled", true);
+      car.setAttribute("anim-loop", true);
+      car.setAttribute("anim-start-time", document.timeline.currentTime);
+      car.removeAttribute("anim-pause-time");
+      const animation = animate(car, "x", startX, endX, time, easing);
+      if (time < smallestTime) {
+        smallestTime = time;
+        winner = `Winner: ${availableCars[index]} (${(time / 1000).toFixed(3)}s)`;
+        winnerAnimation = animation;
+        winnerIndex = index;
+      }
+      playCarSound(index, time);
+      setTimeout(() => {
+        racing = false;
+        car.setAttribute("anim-enabled", false);
+        car.setAttribute("anim-loop", false);
+        car.setAttribute("anim-start-time", document.timeline.currentTime - 1000);
+        car.setAttribute("anim-pause-time", document.timeline.currentTime);
+
+        stopCarSound(index);
+        const winnerLabelContent = winnerLabel.getAttribute("content");
+        if (winnerLabelContent !== winner) {
+          winnerLabel.setAttribute("content", winner);
+          updateAttributesLabel(carColors[winnerIndex]);
+          countdownLabel.setAttribute("content", "");
+          countdownLabel.setAttribute("visible", false);
+        }
+        if (playButton) {
+          playButton.turnOn();
+        }
+      }, time);
+    });
+  }
+
+  createCountDownSound();
+  createTrack();
+  createCars();
+
+  function play() {
+    if (racing) return;
+    racing = true;
+    winnerLabel.setAttribute("content", "");
+    raceCars.forEach((car) => {
+      car.setAttribute("x", -trackLength / 2 + 1);
+    });
+    playCountdownSound();
+    setTimeout(() => {
+      startRace();
+    }, 3200);
+  }
+</script>

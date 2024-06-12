@@ -1,7 +1,8 @@
 import { Networked3dWebExperienceClient } from "@mml-io/3d-web-experience-client";
 
-import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
+import hdrJpgUrl from "../../../assets/hdr/sunset_2k.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
+import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
 import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
@@ -16,13 +17,14 @@ const app = new Networked3dWebExperienceClient(holder, {
   sessionToken: (window as any).SESSION_TOKEN,
   userNetworkAddress,
   chatNetworkAddress,
+  chatVisibleByDefault: true,
   animationConfig: {
     airAnimationFileUrl,
     idleAnimationFileUrl,
     jogAnimationFileUrl,
     sprintAnimationFileUrl,
+    doubleJumpAnimationFileUrl,
   },
-  hdrJpgUrl,
   mmlDocuments: [
     // { url: `${protocol}//${host}/mml-documents/example-mml.html` },
     // {
@@ -33,6 +35,11 @@ const app = new Networked3dWebExperienceClient(holder, {
       url: `${protocol}//${host}/mml-documents/instances-2-test.html`,
       position: { x: 0, y: 0, z: 0 },
     },
+    { url: `${protocol}//${host}/mml-documents/guided-tour.html` },
   ],
+  skyboxHdrJpgUrl: hdrJpgUrl,
+  // mmlDocuments: [],
+  environmentConfiguration: {},
 });
+
 app.update();

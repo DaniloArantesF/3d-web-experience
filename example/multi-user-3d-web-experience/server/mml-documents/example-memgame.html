@@ -1,0 +1,655 @@
+<m-group id="demo-group">
+  <m-group id="game-group" y="1.45"></m-group>
+</m-group>
+
+<script>
+  const demoGroup = document.getElementById("demo-group");
+  const gameGroup = document.getElementById("game-group");
+
+  const columns = 4;
+  const animDuration = 550;
+  const colorOff = "#424242";
+  const colorOn = "#eeeeee";
+  const colorMatch = "#ccffcc";
+  const defaultEasing = "easeInOutCubic";
+  const imgPrefix = "memgame_image_";
+  const numberOfAvailableImages = 21;
+  const numberOfImages = 8;
+
+  const imageScale = 1.5;
+  const cubeScale = 1.6;
+  const gap = 1.7;
+
+  const blocks = new Map();
+
+  let availableImages = [];
+  let images = [];
+  let imagesDuplicated = [];
+
+  let animating = false;
+  let firstIndexSelected = null;
+  let secondIndexSelected = null;
+
+  let soundPlay = null;
+  let soundYes = null;
+  let soundNo = null;
+  let soundWin = null;
+
+  let gamesPlayed = 0;
+  let isReseting = true;
+  let isReset = false;
+  let gameInProgress = false;
+  let lastReset = document.timeline.currentTime;
+
+  // interaction buttons ============================================
+  class InteractionButton {
+    baseModelURL = "/assets/playground/button_base.glb";
+    playButtonOnModelURL = "/assets/playground/play_button_on.glb";
+    playButtonOffModelURL = "/assets/playground/play_button_off.glb";
+    questionButtonOnModelURL = "/assets/playground/question_button_on.glb";
+    questionButtonOffModelURL = "/assets/playground/question_button_off.glb";
+    buttonSoundURL = "/assets/playground/button_sfx.mp3";
+
+    animDuration = 210;
+    buttonSoundDuration = 1200;
+    offset = 0.03;
+    easing = "easeInOutCubic";
+
+    infoSound = null;
+    infoSoundDuration = 0;
+    infoSoundCanPlay = true;
+    buttonSoundCanPlay = true;
+
+    group = document.createElement("m-group");
+    base = document.createElement("m-model");
+    buttonOn = document.createElement("m-model");
+    buttonOff = document.createElement("m-model");
+    buttonSound = document.createElement("m-audio");
+
+    constructor(x, y, z, yRotation, parentGroup) {
+      this.base.setAttribute("src", this.baseModelURL);
+      this.transform(this.group, x, y, z, yRotation);
+      this.group.appendChild(this.base);
+      parentGroup.appendChild(this.group);
+      this.setupButtonSound();
+      return this;
+    }
+
+    setupPlay(callBackFunction) {
+      this.buttonOn.setAttribute("src", this.playButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.playButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            callBackFunction();
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+      });
+    }
+
+    setupInfo(infoSoundURL, infoSoundDuration, infoSoundVolume) {
+      this.buttonOn.setAttribute("src", this.questionButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.questionButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.infoSound = document.createElement("m-audio");
+      this.infoSound.setAttribute("y", 12);
+      this.infoSound.setAttribute("rx", 90);
+      this.infoSound.setAttribute("cone-angle", 90);
+      this.infoSound.setAttribute("cone-falloff-angle", 120);
+      this.infoSound.setAttribute("loop", false);
+      this.infoSound.setAttribute("debug", false);
+      this.infoSound.setAttribute("src", infoSoundURL);
+      this.infoSound.setAttribute("volume", 0);
+      this.infoSound.setAttribute("start-time", document.timeline.currentTime - infoSoundDuration);
+      this.infoSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.infoSound);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            setTimeout(() => this.turnOn(), infoSoundDuration);
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+        setTimeout(() => {
+          this.playInfoSound(infoSoundDuration, infoSoundVolume);
+        }, this.buttonSoundDuration * 0.6667);
+      });
+    }
+
+    turnOff() {
+      this.swap(this.buttonOn, this.buttonOff);
+    }
+
+    turnOn() {
+      this.swap(this.buttonOff, this.buttonOn);
+    }
+
+    pushButtonAnim() {
+      this.animateButton(this.buttonOn, "y", 0, -this.offset, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", 0, this.offset, this.animDuration, this.easing);
+    }
+
+    releaseButtonAnim() {
+      this.animateButton(this.buttonOn, "y", -this.offset, 0, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", this.offset, 0, this.animDuration, this.easing);
+    }
+
+    playInfoSound(infoSoundDuration, infoSoundVolume) {
+      if (this.infoSoundCanPlay === false || this.infoSound === null) {
+        return;
+      }
+      this.infoSoundCanPlay = false;
+      const now = document.timeline.currentTime;
+      this.infoSound.setAttribute("volume", infoSoundVolume);
+      this.infoSound.setAttribute("start-time", now);
+      this.infoSound.setAttribute("pause-time", now + infoSoundDuration);
+      setTimeout(() => {
+        this.infoSound.setAttribute("volume", 0);
+        this.infoSoundCanPlay = true;
+      }, infoSoundDuration);
+    }
+
+    playButtonSound() {
+      if (this.buttonSoundCanPlay === false) {
+        return;
+      }
+      this.buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      this.buttonSound.setAttribute("volume", 2);
+      this.buttonSound.setAttribute("start-time", now);
+      this.buttonSound.setAttribute("pause-time", now + this.buttonSoundDuration);
+      setTimeout(() => {
+        this.buttonSound.setAttribute("volume", 0);
+        this.buttonSoundCanPlay === true;
+      }, this.buttonSoundDuration);
+    }
+
+    transform(element, x, y, z, ry) {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+      element.setAttribute("ry", ry);
+    }
+
+    scale(element, size) {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    }
+
+    swap(elementA, elementB) {
+      this.scale(elementB, 1.0);
+      this.scale(elementA, 0.001);
+    }
+
+    setupButtonSound() {
+      this.buttonSound.setAttribute("y", 1.2);
+      this.buttonSound.setAttribute("loop", false);
+      this.buttonSound.setAttribute("debug", false);
+      this.buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      this.buttonSound.setAttribute("volume", 0);
+      this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
+      this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.buttonSound);
+    }
+
+    animateButton(element, attr, start, end, duration, easing) {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    }
+  }
+
+  const infoButton = new InteractionButton(-1.4, 0, 2, 180, demoGroup);
+  infoButton.setupInfo("/assets/playground/memory_game.mp3", 22000, 3);
+
+  const playButton = new InteractionButton(-0.95, 0, 2, 180, demoGroup);
+  playButton.setupPlay(() => {
+    if (gameInProgress === false && isReseting === false) {
+      playSound(soundPlay, 4);
+      reStartGame();
+    }
+  });
+  // ================================================================
+
+  function setupAudioTag(element, url) {
+    element.setAttribute("src", url);
+    element.setAttribute("loop", false);
+    element.setAttribute("volume", 0);
+    element.setAttribute("start-time", document.timeline.currentTime - 1500);
+    element.setAttribute("pause-time", document.timeline.currentTime);
+    element.setAttribute("z", 0.5);
+    element.setAttribute("x", (columns * cubeScale) / 2 - cubeScale / 2);
+    element.setAttribute("y", 5);
+    element.setAttribute("rx", 65);
+    element.setAttribute("cone-angle", 90);
+    element.setAttribute("cone-falloff-angle", 120);
+    element.setAttribute("debug", false);
+  }
+
+  function createSFX() {
+    soundPlay = document.createElement("m-audio");
+    setupAudioTag(soundPlay, "/assets/playground/game_play.mp3");
+    soundYes = document.createElement("m-audio");
+    setupAudioTag(soundYes, "/assets/playground/game_yes.mp3");
+    soundNo = document.createElement("m-audio");
+    setupAudioTag(soundNo, "/assets/playground/game_no.mp3");
+    soundWin = document.createElement("m-audio");
+    setupAudioTag(soundWin, "/assets/playground/game_win.mp3");
+    gameGroup.appendChild(soundPlay);
+    gameGroup.appendChild(soundYes);
+    gameGroup.appendChild(soundNo);
+    gameGroup.appendChild(soundWin);
+  }
+
+  function playSound(sound, volume) {
+    sound.setAttribute("volume", volume);
+    sound.setAttribute("start-time", document.timeline.currentTime);
+    sound.setAttribute("pause-time", document.timeline.currentTime + 1200);
+    setTimeout(() => sound.setAttribute("volume", 0), 1200);
+  }
+
+  function prepareImages() {
+    availableImages = [];
+    images = [];
+    imagesDuplicated = [];
+    for (let i = 0; i < numberOfAvailableImages; i++) {
+      availableImages.push(`${imgPrefix}${i.toString().padStart(2, "0")}.jpg`);
+    }
+    while (images.length < numberOfImages) {
+      const imageName = getRandomImage(availableImages);
+      const url = `/assets/playground/${imageName}`;
+      if (!images.includes(url)) {
+        images.push(url);
+      }
+    }
+    imagesDuplicated = images.concat(images);
+    shuffleArray(imagesDuplicated);
+  }
+
+  function getRandomImage(arr) {
+    const randomIndex = Math.floor(Math.random() * arr.length);
+    return arr[randomIndex];
+  }
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  function createFrame() {
+    const totalBlocks = numberOfImages * 2;
+    const rows = Math.ceil(totalBlocks / columns);
+    const frameWidth = columns * gap;
+    const frameHeight = rows * gap;
+    const frameGroup = document.createElement("m-group");
+    const backCube = document.createElement("m-cube");
+    backCube.setAttribute("color", "black");
+    backCube.setAttribute("sx", frameWidth + 0.5);
+    backCube.setAttribute("sy", frameHeight + 0.5);
+    backCube.setAttribute("sz", 0.5);
+    backCube.setAttribute("x", frameWidth / 2 - gap / 2);
+    backCube.setAttribute("y", frameHeight / 2 - gap / 2);
+    backCube.setAttribute("z", -0.35);
+    frameGroup.appendChild(backCube);
+
+    const playCube = document.createElement("m-cube");
+    playCube.setAttribute("color", "black");
+    playCube.setAttribute("sx", frameWidth + 0.5);
+    playCube.setAttribute("sy", 1);
+    playCube.setAttribute("sz", 0.5);
+    playCube.setAttribute("x", frameWidth / 2 - gap / 2);
+    playCube.setAttribute("y", -1.25);
+    playCube.setAttribute("z", -0.08);
+    playCube.setAttribute("rx", -45);
+    frameGroup.appendChild(playCube);
+
+    const frameLabel = document.createElement("m-label");
+    frameLabel.setAttribute("content", "PLAY");
+    frameLabel.setAttribute("padding", 0);
+    frameLabel.setAttribute("alignment", "center");
+    frameLabel.setAttribute("color", "hsl(150, 50%, 40%)");
+    frameLabel.setAttribute("width", 3);
+    frameLabel.setAttribute("height", 0.45);
+    frameLabel.setAttribute("font-size", 33);
+    frameLabel.setAttribute("font-color", "#ffffff");
+    frameLabel.setAttribute("x", frameWidth / 2 - gap / 2);
+    frameLabel.setAttribute("y", -1.2);
+    frameLabel.setAttribute("z", 0.225);
+    frameLabel.setAttribute("rx", -45);
+
+    gameGroup.appendChild(frameGroup);
+  }
+
+  function createBlock(index) {
+    const blockMeshGroup = document.createElement("m-group");
+
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("color", colorOff);
+    cube.setAttribute("sx", cubeScale);
+    cube.setAttribute("sy", cubeScale);
+    cube.setAttribute("sz", 0.3334);
+
+    const textureSrc = imagesDuplicated[index];
+    const texture = document.createElement("m-image");
+    texture.setAttribute("src", textureSrc);
+    texture.setAttribute("z", 0.168);
+    texture.setAttribute("sx", imageScale);
+    texture.setAttribute("sy", imageScale);
+    blockMeshGroup.appendChild(texture);
+
+    blockMeshGroup.setAttribute("x", column * gap);
+    blockMeshGroup.setAttribute("y", row * gap);
+    blockMeshGroup.setAttribute("z", 0.1);
+    blockMeshGroup.setAttribute("ry", 180);
+
+    const block = {
+      id: index,
+      group: blockMeshGroup,
+      texture: texture,
+      mesh: cube,
+      hidden: true,
+      src: textureSrc,
+      pair: null,
+      matched: false,
+    };
+
+    block.handleClick = () => handleBlockClick(block.id);
+    cube.addEventListener("click", block.handleClick);
+    blockMeshGroup.appendChild(cube);
+
+    return block;
+  }
+
+  function shuffleMapValuesInPlace(map) {
+    const entries = Array.from(map.entries());
+    const values = entries.map((entry) => entry[1]);
+    for (let i = values.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [values[i], values[j]] = [values[j], values[i]];
+    }
+    entries.forEach((entry, index) => {
+      const block = values[index];
+      const newId = entry[0];
+      const oldId = block.id;
+      block.mesh.removeEventListener("click", block.handleClick);
+      block.id = newId;
+      block.matched = false;
+      block.hidden = true;
+      block.handleClick = () => handleBlockClick(newId);
+      block.mesh.addEventListener("click", block.handleClick);
+      map.set(newId, block);
+    });
+  }
+
+  function repositionAllBlocks() {
+    shuffleMapValuesInPlace(blocks);
+    blocks.forEach((block, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      block.group.setAttribute("x", column * gap);
+      block.group.setAttribute("y", row * gap);
+    });
+  }
+
+  function createAllBlocks() {
+    for (let i = 0; i < imagesDuplicated.length; i++) {
+      const block = createBlock(i);
+      blocks.set(i, block);
+      gameGroup.appendChild(block.group);
+    }
+  }
+
+  function resetAllBlocks() {
+    // if (blocks.size > 0) {
+    //   blocks.forEach((block) => {
+    //     block.texture.remove();
+    //     block.mesh.remove();
+    //     block.group.remove();
+    //   });
+    // }
+    // blocks.clear();
+    if (gamesPlayed === 0) {
+      createAllBlocks();
+      findPairs();
+    } else {
+      repositionAllBlocks();
+      findPairs();
+    }
+  }
+
+  function findPairs() {
+    blocks.forEach((block, index) => {
+      blocks.forEach((otherBlock, otherIndex) => {
+        if (index !== otherIndex && block.src === otherBlock.src) {
+          block.pair = otherIndex;
+        }
+      });
+    });
+  }
+
+  function animate(element, attr, start, end, duration, easing) {
+    animating = true;
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    setTimeout(() => {
+      element.setAttribute(attr, end);
+      element.removeChild(anim);
+      animating = false;
+    }, duration + 50);
+  }
+
+  function revealAllBlocks(revealDuration) {
+    blocks.forEach((block, index) => {
+      animate(block.group, "ry", 180, 0, animDuration, defaultEasing);
+      setTimeout(() => {
+        animate(block.group, "ry", 0, 180, animDuration, defaultEasing);
+      }, revealDuration);
+    });
+    isReset = true;
+  }
+
+  function hideAllBlocks() {
+    blocks.forEach((block, index) => {
+      animate(block.mesh, "color", colorMatch, colorOff, animDuration, defaultEasing);
+      animate(block.group, "ry", 0, 180, animDuration, defaultEasing);
+    });
+  }
+
+  function revealBlock(index) {
+    const blockObject = blocks.get(index);
+    if (blockObject.hidden === false) {
+      return;
+    }
+
+    animate(blockObject.group, "ry", 180, 0, animDuration, defaultEasing);
+    animate(blockObject.mesh, "color", colorOff, colorOn, animDuration, defaultEasing);
+
+    setTimeout(() => {
+      blockObject.hidden = false;
+      blockObject.mesh.setAttribute("color", colorOn);
+    }, animDuration);
+
+    if (firstIndexSelected === null) {
+      firstIndexSelected = index;
+    } else if (secondIndexSelected === null) {
+      secondIndexSelected = index;
+      const match = checkForMatch();
+    }
+  }
+
+  function hideBlock(index) {
+    const blockObject = blocks.get(index);
+    animate(blockObject.group, "ry", 0, 180, animDuration, defaultEasing);
+    animate(blockObject.mesh, "color", colorOn, colorOff, animDuration, defaultEasing);
+    setTimeout(() => {
+      blockObject.hidden = true;
+    }, animDuration);
+  }
+
+  function hideBlocks(indexA, indexB) {
+    const blockObjectA = blocks.get(indexA);
+    const blockObjectB = blocks.get(indexB);
+    animate(blockObjectA.group, "ry", 0, 180, animDuration, defaultEasing);
+    animate(blockObjectA.mesh, "color", colorOn, colorOff, animDuration, defaultEasing);
+    animate(blockObjectB.group, "ry", 0, 180, animDuration, defaultEasing);
+    animate(blockObjectB.mesh, "color", colorOn, colorOff, animDuration, defaultEasing);
+    setTimeout(() => {
+      blockObjectA.hidden = true;
+      blockObjectB.hidden = true;
+      firstIndexSelected = null;
+      secondIndexSelected = null;
+    }, animDuration);
+  }
+
+  function checkIfGameOver() {
+    let matchedBlocks = 0;
+    blocks.forEach((block) => {
+      if (block.matched === true) {
+        matchedBlocks++;
+      }
+    });
+    if (matchedBlocks === numberOfImages * 2) {
+      isReseting = true;
+      gameInProgress = false;
+      gamesPlayed++;
+      setTimeout(() => playSound(soundWin, 3), 1000);
+      setTimeout(() => hideAllBlocks(), 2000);
+      setTimeout(() => reStartGame(), 4000);
+    }
+  }
+
+  function checkForMatch() {
+    if (firstIndexSelected === null || secondIndexSelected === null) {
+      return false;
+    }
+    const firstBlockObject = blocks.get(firstIndexSelected);
+    const secondBlockObject = blocks.get(secondIndexSelected);
+    if (firstBlockObject.pair === secondBlockObject.id) {
+      firstBlockObject.matched = true;
+      secondBlockObject.matched = true;
+      animate(firstBlockObject.mesh, "color", colorOn, colorMatch, animDuration, defaultEasing);
+      animate(secondBlockObject.mesh, "color", colorOn, colorMatch, animDuration, defaultEasing);
+      firstIndexSelected = null;
+      secondIndexSelected = null;
+      playSound(soundYes, 4);
+      checkIfGameOver();
+      return true;
+    } else {
+      playSound(soundNo, 2);
+      setTimeout(() => hideBlocks(firstIndexSelected, secondIndexSelected), 1500);
+    }
+  }
+
+  function handleBlockClick(index) {
+    if (isReseting) {
+      return;
+    }
+    isReset = false;
+    gameInProgress = true;
+    const bothIndexSelected = firstIndexSelected !== null && secondIndexSelected !== null;
+    if (!animating && !bothIndexSelected) {
+      const blockObject = blocks.get(index);
+      if (blockObject && !blockObject.matched) {
+        revealBlock(index);
+      }
+    }
+  }
+
+  function reStartGame() {
+    if (isReset === false) {
+      prepareImages();
+      resetAllBlocks();
+      setTimeout(() => revealAllBlocks(4000), 1500);
+      setTimeout(() => {
+        lastReset = document.timeline.currentTime;
+        isReseting = false;
+      }, 5500);
+    } else {
+      revealAllBlocks(4000);
+      setTimeout(() => {
+        lastReset = document.timeline.currentTime;
+        isReseting = false;
+      }, 5500);
+    }
+  }
+
+  function formatTime(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    const secondsPart = (seconds % 60).toString().padStart(2, "0");
+    const minutesPart = (minutes % 60).toString().padStart(2, "0");
+    const hoursPart = hours.toString().padStart(2, "0");
+
+    if (hours > 0) {
+      return `${hoursPart}h ${minutesPart}m ${secondsPart}s`;
+    } else if (minutes > 0) {
+      return `${minutesPart}m ${secondsPart}s`;
+    } else {
+      return `${secondsPart}s`;
+    }
+  }
+
+  setInterval(() => {
+    if (gameInProgress === true || isReseting === true) {
+      if (playButton) {
+        playButton.turnOff();
+      }
+    } else {
+      if (playButton) {
+        playButton.turnOn();
+      }
+      // if (playButton) {
+      //   if (playButton.getAttribute("content") !== "PLAY") {
+      //     playButton.setAttribute("content", "PLAY");
+      //   }
+      // }
+    }
+  }, 1000);
+
+  createFrame();
+  createSFX();
+  reStartGame();
+</script>

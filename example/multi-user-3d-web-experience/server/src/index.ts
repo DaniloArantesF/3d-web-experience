@@ -48,10 +48,13 @@ const mmlDocumentsWatchPath = path.resolve(path.join(dirname, "../mml-documents"
 
 const { app } = enableWs(express());
 app.enable("trust proxy");
+
+const PASS = process.env.PASS ?? undefined;
+
 const DOLBY_APP_KEY = process.env.DOLBY_APP_KEY ?? "";
 const DOLBY_APP_SECRET = process.env.DOLBY_APP_SECRET ?? "";
 if (DOLBY_APP_KEY && DOLBY_APP_SECRET) {
-  registerDolbyVoiceRoutes(app, { DOLBY_APP_KEY, DOLBY_APP_SECRET });
+  registerDolbyVoiceRoutes(app, { DOLBY_APP_KEY, DOLBY_APP_SECRET, PASS });
 }
 
 const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
@@ -76,6 +79,13 @@ const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
   },
 });
 networked3dWebExperienceServer.registerExpressRoutes(app);
+
+app.use((req, res, next) => {
+  if (req.path.endsWith(".ttf")) {
+    return res.redirect(`../../../assets/fonts${req.path}`);
+  }
+  next();
+});
 
 // Start listening
 console.log("Listening on port", PORT);

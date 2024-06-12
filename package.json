@@ -6,9 +6,8 @@
     "node": "20.x"
   },
   "scripts": {
-    "preinstall": "node check-node-version.js",
     "build": "lerna run --stream build",
-    "start": "npm run start -w @example/server",
+    "start": "npm run start -w @example/multi-user-3d-web-experience-server",
     "iterate": "npm run build && lerna run --parallel --stream iterate",
     "type-check-all": "lerna run --stream --no-bail type-check",
     "test-all": "lerna run --parallel --stream --no-bail test",
@@ -30,7 +29,6 @@
     "@typescript-eslint/parser": "^7.7.0",
     "concurrently": "^8.2.2",
     "esbuild": "0.20.2",
-    "esbuild-jest": "0.5.0",
     "esbuild-plugin-copy": "2.1.1",
     "eslint": "^8.57.0",
     "eslint-config-airbnb-typescript": "^18.0.0",
@@ -48,6 +46,7 @@
     "rimraf": "^5.0.5",
     "tmp": "^0.2.3",
     "ts-node": "^10.9.2",
+    "ts-jest": "29.1.2",
     "tsx": "4.7.2",
     "typescript": "^5.4.5"
   }
