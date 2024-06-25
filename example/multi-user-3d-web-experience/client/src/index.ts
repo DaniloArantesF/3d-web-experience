@@ -25,7 +25,13 @@ const app = new Networked3dWebExperienceClient(holder, {
     doubleJumpAnimationFileUrl,
   },
   skyboxHdrJpgUrl: hdrJpgUrl,
-  mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/example-mml.html` }],
+  mmlDocuments: [
+    {
+      url: `${protocol}//${host}/mml-documents/m-material-test.html`,
+      position: { x: 20, y: 0, z: 0 },
+    },
+    { url: `${protocol}//${host}/mml-documents/mazeV2.html` },
+  ],
   environmentConfiguration: {},
 });
 
