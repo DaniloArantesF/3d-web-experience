@@ -1,13 +1,14 @@
-export const DISCONNECTED_MESSAGE_TYPE = "disconnected";
-export const IDENTITY_MESSAGE_TYPE = "identity";
-export const USER_AUTHENTICATE_MESSAGE_TYPE = "user_auth";
-export const USER_PROFILE_MESSAGE_TYPE = "user_profile";
-export const USER_UPDATE_MESSAGE_TYPE = "user_update";
-export const PING_MESSAGE_TYPE = "ping";
-export const PONG_MESSAGE_TYPE = "pong";
+export const USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE = "disconnected";
+export const USER_NETWORKING_IDENTITY_MESSAGE_TYPE = "identity";
+export const USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE = "user_auth";
+export const USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE = "user_profile";
+export const USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE = "user_update";
+export const USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE = "error";
+export const USER_NETWORKING_PING_MESSAGE_TYPE = "ping";
+export const USER_NETWORKING_PONG_MESSAGE_TYPE = "pong";
 
-export type IdentityMessage = {
-  type: typeof IDENTITY_MESSAGE_TYPE;
+export type UserNetworkingIdentityMessage = {
+  type: typeof USER_NETWORKING_IDENTITY_MESSAGE_TYPE;
   id: number;
 };
 
@@ -27,30 +28,48 @@ export type CharacterDescription = {
     }
 );
 
-export type UserProfileMessage = {
-  type: typeof USER_PROFILE_MESSAGE_TYPE;
+export type UserNetworkingProfileMessage = {
+  type: typeof USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE;
   id: number;
   username: string;
   characterDescription: CharacterDescription;
 };
 
-export type DisconnectedMessage = {
-  type: typeof DISCONNECTED_MESSAGE_TYPE;
+export type UserNetworkingDisconnectedMessage = {
+  type: typeof USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE;
   id: number;
 };
 
-export type FromServerPingMessage = {
-  type: typeof PING_MESSAGE_TYPE;
+export const USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE = "CONNECTION_LIMIT_REACHED";
+export const USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE = "AUTHENTICATION_FAILED";
+export const USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE = "SERVER_SHUTDOWN";
+export const USER_NETWORKING_UNKNOWN_ERROR = "UNKNOWN_ERROR";
+
+export type UserNetworkingServerErrorType =
+  | typeof USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE
+  | typeof USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE
+  | typeof USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE
+  | typeof USER_NETWORKING_UNKNOWN_ERROR;
+
+export type UserNetworkingServerError = {
+  type: typeof USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE;
+  errorType: UserNetworkingServerErrorType;
+  message: string;
 };
 
-export type FromServerMessage =
-  | IdentityMessage
-  | UserProfileMessage
-  | DisconnectedMessage
-  | FromServerPingMessage;
+export type UserNetworkingServerPingMessage = {
+  type: typeof USER_NETWORKING_PING_MESSAGE_TYPE;
+};
 
-export type FromClientPongMessage = {
-  type: typeof PONG_MESSAGE_TYPE;
+export type FromUserNetworkingServerMessage =
+  | UserNetworkingIdentityMessage
+  | UserNetworkingProfileMessage
+  | UserNetworkingDisconnectedMessage
+  | UserNetworkingServerPingMessage
+  | UserNetworkingServerError;
+
+export type UserNetworkingClientPongMessage = {
+  type: typeof USER_NETWORKING_PONG_MESSAGE_TYPE;
 };
 
 export type UserIdentity = {
@@ -58,16 +77,19 @@ export type UserIdentity = {
   username: string | null;
 };
 
-export type UserAuthenticateMessage = {
-  type: typeof USER_AUTHENTICATE_MESSAGE_TYPE;
+export type UserNetworkingAuthenticateMessage = {
+  type: typeof USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE;
   sessionToken: string;
   // The client can send a UserIdentity to use as the initial user profile and the server can choose to accept it or not
   userIdentity?: UserIdentity;
 };
 
-export type UserUpdateMessage = {
-  type: typeof USER_UPDATE_MESSAGE_TYPE;
+export type UserNetworkingUserUpdateMessage = {
+  type: typeof USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE;
   userIdentity: UserIdentity;
 };
 
-export type FromClientMessage = FromClientPongMessage | UserAuthenticateMessage | UserUpdateMessage;
+export type FromUserNetworkingClientMessage =
+  | UserNetworkingClientPongMessage
+  | UserNetworkingAuthenticateMessage
+  | UserNetworkingUserUpdateMessage;

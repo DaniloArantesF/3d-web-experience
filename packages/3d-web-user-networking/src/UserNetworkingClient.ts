@@ -2,13 +2,15 @@ import { ReconnectingWebSocket, WebsocketFactory, WebsocketStatus } from "./Reco
 import { UserNetworkingClientUpdate, UserNetworkingCodec } from "./UserNetworkingCodec";
 import {
   CharacterDescription,
-  DISCONNECTED_MESSAGE_TYPE,
-  FromClientMessage,
-  FromServerMessage,
-  IDENTITY_MESSAGE_TYPE,
-  PING_MESSAGE_TYPE,
-  USER_AUTHENTICATE_MESSAGE_TYPE,
-  USER_PROFILE_MESSAGE_TYPE,
+  USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
+  FromUserNetworkingClientMessage,
+  FromUserNetworkingServerMessage,
+  USER_NETWORKING_IDENTITY_MESSAGE_TYPE,
+  USER_NETWORKING_PING_MESSAGE_TYPE,
+  USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+  UserNetworkingServerErrorType,
+  USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
+  USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
 } from "./UserNetworkingMessages";
 
 export type UserNetworkingClientConfig = {
@@ -23,6 +25,7 @@ export type UserNetworkingClientConfig = {
     username: string,
     characterDescription: CharacterDescription,
   ) => void;
+  onServerError: (error: { message: string; errorType: UserNetworkingServerErrorType }) => void;
 };
 
 export class UserNetworkingClient extends ReconnectingWebSocket {
@@ -30,7 +33,7 @@ export class UserNetworkingClient extends ReconnectingWebSocket {
     super(config.url, config.websocketFactory, (status: WebsocketStatus) => {
       if (status === WebsocketStatus.Connected) {
         this.sendMessage({
-          type: USER_AUTHENTICATE_MESSAGE_TYPE,
+          type: USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
           sessionToken: config.sessionToken,
         });
       }
@@ -43,28 +46,32 @@ export class UserNetworkingClient extends ReconnectingWebSocket {
     this.send(encodedUpdate);
   }
 
-  public sendMessage(message: FromClientMessage): void {
+  public sendMessage(message: FromUserNetworkingClientMessage): void {
     this.send(message);
   }
 
   protected handleIncomingWebsocketMessage(message: MessageEvent) {
     if (typeof message.data === "string") {
-      const parsed = JSON.parse(message.data) as FromServerMessage;
+      const parsed = JSON.parse(message.data) as FromUserNetworkingServerMessage;
       switch (parsed.type) {
-        case DISCONNECTED_MESSAGE_TYPE:
+        case USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE:
+          console.error(`Server error: ${parsed.message}. errorType: ${parsed.errorType}`);
+          this.config.onServerError(parsed);
+          break;
+        case USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} left`);
           this.config.clientUpdate(parsed.id, null);
           break;
-        case IDENTITY_MESSAGE_TYPE:
+        case USER_NETWORKING_IDENTITY_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} assigned to self`);
           this.config.assignedIdentity(parsed.id);
           break;
-        case USER_PROFILE_MESSAGE_TYPE:
+        case USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} updated profile`);
           this.config.clientProfileUpdated(parsed.id, parsed.username, parsed.characterDescription);
           break;
-        case PING_MESSAGE_TYPE: {
-          this.sendMessage({ type: "pong" } as FromClientMessage);
+        case USER_NETWORKING_PING_MESSAGE_TYPE: {
+          this.sendMessage({ type: "pong" } as FromUserNetworkingClientMessage);
           break;
         }
         default:

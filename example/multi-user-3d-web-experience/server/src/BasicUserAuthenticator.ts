@@ -30,7 +30,7 @@ export class BasicUserAuthenticator {
     private options: BasicUserAuthenticatorOptions = defaultOptions,
   ) {}
 
-  public generateAuthorizedSessionToken(req: express.Request): string {
+  public async generateAuthorizedSessionToken(req: express.Request): Promise<string> {
     const sessionToken = crypto.randomBytes(20).toString("hex");
     const authUser: AuthUser = {
       clientId: null,
@@ -48,17 +48,17 @@ export class BasicUserAuthenticator {
   ): UserData | null {
     console.log(`Client ID: ${clientId} joined with token`);
     let user = this.userBySessionToken.get(sessionToken);
+    if (!user && this.options.devAllowUnrecognizedSessions) {
+      console.warn(`Dev mode: allowing unrecognized session token`);
+      user = {
+        clientId: null,
+        sessionToken,
+      };
+      this.userBySessionToken.set(sessionToken, user);
+    }
+
     if (!user) {
       console.error(`Invalid initial user-update for clientId ${clientId}, unknown session`);
-
-      if (this.options.devAllowUnrecognizedSessions) {
-        console.warn(`Dev mode: allowing unrecognized session token`);
-        user = {
-          clientId: null,
-          sessionToken,
-        };
-        this.userBySessionToken.set(sessionToken, user);
-      }
       return null;
     }
 
@@ -93,12 +93,28 @@ export class BasicUserAuthenticator {
   }
 
   public onClientUserIdentityUpdate(clientId: number, msg: UserIdentity): UserData | null {
-    // This implementation does not allow updating user data after initial connect.
-
     // To allow updating user data after initial connect, return the UserData object that reflects the requested change.
-
     // Returning null will not update the user data.
-    return null;
+
+    const user = this.usersByClientId.get(clientId);
+
+    if (!user) {
+      console.error(`onClientUserIdentityUpdate - unknown clientId ${clientId}`);
+      return null;
+    }
+
+    if (!user.userData) {
+      console.error(`onClientUserIdentityUpdate - no user data for clientId ${clientId}`);
+      return null;
+    }
+
+    const newUserData: UserData = {
+      username: msg.username ?? user.userData.username,
+      characterDescription: msg.characterDescription ?? user.userData.characterDescription,
+    };
+
+    this.usersByClientId.set(clientId, { ...user, userData: newUserData });
+    return newUserData;
   }
 
   public onClientDisconnect(clientId: number) {

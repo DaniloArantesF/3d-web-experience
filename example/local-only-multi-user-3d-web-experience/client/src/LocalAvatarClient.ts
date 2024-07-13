@@ -18,6 +18,7 @@ import { AudioListener, Euler, Scene, Vector3 } from "three";
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
+import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
 import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
@@ -30,6 +31,7 @@ const animationConfig: AnimationConfig = {
   idleAnimationFileUrl,
   jogAnimationFileUrl,
   sprintAnimationFileUrl,
+  doubleJumpAnimationFileUrl,
 };
 
 // Specify the avatar to use here:
@@ -44,6 +46,7 @@ const characterDescription: CharacterDescription = {
 
 export class LocalAvatarClient {
   public element: HTMLDivElement;
+  private canvasHolder: HTMLDivElement;
 
   private readonly scene = new Scene();
   private readonly audioListener = new AudioListener();
@@ -81,15 +84,25 @@ export class LocalAvatarClient {
       }
     });
 
+    this.canvasHolder = document.createElement("div");
+    this.canvasHolder.style.position = "absolute";
+    this.canvasHolder.style.width = "100%";
+    this.canvasHolder.style.height = "100%";
+    this.element.appendChild(this.canvasHolder);
+
     this.cameraManager = new CameraManager(
-      this.element,
+      this.canvasHolder,
       this.collisionsManager,
       Math.PI / 2,
       Math.PI / 2,
     );
     this.cameraManager.camera.add(this.audioListener);
 
-    this.composer = new Composer(this.scene, this.cameraManager.camera, true);
+    this.composer = new Composer({
+      scene: this.scene,
+      camera: this.cameraManager.camera,
+      spawnSun: true,
+    });
     this.composer.useHDRJPG(hdrJpgUrl);
     this.element.appendChild(this.composer.renderer.domElement);
 
