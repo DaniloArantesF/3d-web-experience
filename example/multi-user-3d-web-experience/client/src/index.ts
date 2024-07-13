@@ -27,10 +27,11 @@ const app = new Networked3dWebExperienceClient(holder, {
   skyboxHdrJpgUrl: hdrJpgUrl,
   mmlDocuments: [
     {
-      url: `${protocol}//${host}/mml-documents/m-material-test.html`,
-      position: { x: 20, y: 0, z: 0 },
+      url: `${protocol}//${host}/mml-documents/showroom.html`,
+      // position: { x: 20, y: 0, z: 0 },
     },
-    { url: `${protocol}//${host}/mml-documents/mazeV2.html` },
+    { url: `${protocol}//${host}/mml-documents/shaders.html` },
+    { url: `${protocol}//${host}/mml-documents/maze.html` },
   ],
   environmentConfiguration: {},
 });

@@ -1,0 +1,1029 @@
+<m-group  sx="0.4" sy="0.4" rx="0" ry="180"y="3" z="4">
+  <m-position-probe id="my-position-probe" x="0" z="4" range="17" interval="50"></m-position-probe>
+  <m-audio
+    id="my-audio"
+    class="some-audio-class"
+    src="https://www.daniloarantesf.me/assets/songs/song1.mp3"
+    debug="false"
+    loop="true"
+    enabled="true"
+    volume="1.5"
+    z="-3"
+  >
+    <m-label
+      onclick="pause(event.currentTarget.parentNode)"
+      content="pause"
+      x="-10"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#ffffff"
+    ></m-label>
+    <m-label
+      onclick="unpause(event.currentTarget.parentNode)"
+      content="unpause"
+      x="-5"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#dddddd"
+    ></m-label>
+    <m-label
+      onclick="toggleEnabled(event.currentTarget.parentNode)"
+      content="enable"
+      x="0"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#ffffff"
+    ></m-label>
+    <m-label
+      onclick="resume(event.currentTarget.parentNode)"
+      content="resume"
+      x="5"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#dddddd"
+    ></m-label>
+    <m-label
+      onclick="restart(event.currentTarget.parentNode)"
+      content="restart"
+      x="10"
+      y="-5"
+      z="1"
+      rx="-15"
+      font-size="100"
+      width="5"
+      alignment="center"
+      height="1.5"
+      color="#ffffff"
+    ></m-label>
+  </m-audio>
+
+  <!-- Spectrum Visualizer -->
+  <m-shader
+    id="spectrumVisualizer"
+    audio="my-audio"
+    z="-7"
+    x="12"
+    rx="-10"
+    width="10"
+    height="10"
+    frag="
+  uniform sampler2D prgm3Texture;
+
+  vec3 clamps(vec3 x) { return clamp(x, 0.042, 1.0); }
+
+  vec3 getColor(float val, vec2 uv, float mul) {
+    return clamps(vec3(val * 1.0 - uv.y) * mul);
+  }
+
+  void main(void) {
+    float ratio = 0.2;
+    float ratioDiff = 1.0 - ratio;
+    float invRatioDiff = 1.0 / ratioDiff;
+    vec2 uv = vUv;
+    float uvy = (uv.y / ratioDiff) - ratio * invRatioDiff;
+    vec4 prgm3 = texture2D(prgm3Texture, vec2(uv.x, uvy));
+    gl_FragColor = prgm3;
+  }
+"
+  >
+    <!-- prgm1Texture -->
+    <m-shader
+      frag="
+      vec3 hash33(vec3 p3) {
+        p3 = fract(p3 * vec3(0.1031, 0.1030, 0.0973));
+        p3 += dot(p3, p3.yxz + 19.19);
+        return fract((p3.xxy + p3.yxx) * p3.zyx);
+      }
+
+      vec3 mixColor(vec3 col1, vec3 col2, float v) {
+        v = clamp(v, 0.0, 1.0);
+        return clamp(col1 + v * (col2 - col1 * 1.5), 0.0, 1.0);
+      }
+
+      void main(void) {
+        vec2 uv = vUv;
+        uv.x = (uv.x - 0.5 > 0.0) ? uv.x - 0.521 : 0.479 - uv.x;
+        vec2 p = uv * 2.0 - 1.0;
+        p *= vec2(resolution.x / resolution.y, 1.0);
+        p.y += 0.3;
+        vec3 col = vec3(0.0);
+        vec3 ref = vec3(0.0);
+        float nBands = 64.0;
+        float i = floor((uv.x * 1.3 + 0.3) * nBands);
+        float f = fract((uv.x * 1.3 + 0.3) * nBands);
+        float band = i/nBands;
+        band *= band * band;
+        band = band * 0.995;
+        band += 0.005;
+        float s = texture2D(fftTexture, vec2(band, 0.25)).x;
+        const int nColors = 4;
+        vec3 colors[nColors];
+        colors[0] = vec3(0.0, 0.0, 1.0);
+        colors[1] = vec3(0.0, 1.0, 1.0);
+        colors[2] = vec3(1.0, 1.0, 0.0);
+        colors[3] = vec3(1.0, 0.0, 0.0);
+        vec3 gradCol = colors[0];
+        float n = float(nColors) - 1.0;
+        for(int i = 1; i < nColors; i++) {
+          gradCol = mixColor(gradCol, colors[i], (s - float(i - 1) / n) * n);
+        }
+        col += vec3(1.0 - smoothstep(0.0, 0.001, p.y - s * 1.25));
+        col *= gradCol;
+        ref += vec3(1.0 - smoothstep(0.0, -0.001, p.y + s * 1.25));
+        ref *= gradCol * smoothstep(-0.5, 0.5, p.y);
+        col = mix(ref, col, smoothstep(-0.005, 0.005, p.y));
+        col *= smoothstep(0.125, 0.375, f);
+        col *= smoothstep(0.875, 0.625, f);
+        col = clamp(col, 0.0, 1.0);
+        vec3 h = hash33(vec3(vUv, float(time)));
+        float dither = h.x * h.y;
+        col += dither * 0.04;
+        gl_FragColor = vec4(col,1.0);
+      }"
+    >
+    </m-shader>
+    <!-- prgm2Texture -->
+    <m-shader
+      frag="
+      uniform sampler2D prgm1Texture;
+
+      vec3 hash33(vec3 p3) {
+        p3 = fract(p3 * vec3(0.1031, 0.1030, 0.0973));
+        p3 += dot(p3, p3.yxz + 19.19);
+        return fract((p3.xxy + p3.yxx) * p3.zyx);
+      }
+
+      void main(void) {
+        vec2 uv = vUv;
+        vec4 texCol = texture2D(prgm1Texture, uv);
+        vec4 col = texCol;
+        float w = 0.1;
+        vec2 a = vec2(uv.x - 0.5, uv.y - 0.66);
+        vec2 b = a * 0.15 / float(10.0);
+        vec3 h = hash33(vec3(vUv, time));
+        uv += b * h.x;
+        for (float i = 1.0; i > 0.9; i-= 0.000625) {
+          uv -= 0.5;
+          uv *= i;
+          uv += 0.5;
+          col += texture2D(prgm1Texture, uv) * w * 1.5;
+          w *= 0.95;
+        }
+        col *= 0.9;
+        gl_FragColor = mix(texCol, col, 0.5);
+      }"
+    ></m-shader>
+    <!-- prgm3Texture -->
+    <m-shader
+      frag="
+      uniform sampler2D prgm2Texture;
+
+      const float PI = acos(-1.0);
+      const float TAU = PI * 2.0;
+      const float hardscan = -16.0; // -8.0 = soft | -16.0 = medium
+      const float hardPix = -4.0; // -2.0 = soft | -4.0 = hard
+      const float maskDark = 0.5;
+      const float maskLight = 2.5;
+      const float hk = 1.0 / sqrt(3.0);
+
+      vec3 hueShift(vec3 col, float a) {
+        const vec3 k = vec3(hk);
+        float ca = cos(a);
+        return vec3(col * ca + cross(k, col) * sin(a) + k * dot(k, col) * (1.0 - ca));
+      }
+
+      float toLinear(float c) {
+        return (c <= 0.04045) ? c / 12.92 : pow(abs((c + 0.055) / 1.055), 2.4);
+      }
+
+      vec3 toLinear(vec3 c) {
+        return vec3(toLinear(c.r), toLinear(c.g), toLinear(c.b));
+      }
+
+      float toSRGB(float c) {
+        return(c < 0.0031308 ? c * 12.92 : 1.055 * pow(abs(c), 0.41666) - 0.055);
+      }
+
+      vec3 toSRGB(vec3 c) {
+        return vec3(toSRGB(c.r), toSRGB(c.g), toSRGB(c.b));
+      }
+
+      vec3 fetch(vec2 pos, vec2 off, vec2 res) {
+        pos = floor(pos * res + off) / res;
+        if (max(abs(pos.x - 0.5), abs(pos.y - 0.5)) > 0.5) {
+          return vec3(0.0);
+        }
+        vec3 fetch = texture2D(prgm2Texture, pos.xy, -16.0).xyz;
+        fetch = hueShift(fetch, 1.5 * fft + time * 0.75);
+        return toLinear(mix(fetch, fetch * fetch, 0.5));
+      }
+
+      vec2 dist(vec2 pos, vec2 res) {
+        pos = pos * res;
+        return -((pos - floor(pos)) - vec2(0.5));
+      }
+
+      float gauss(float pos, float scale) {
+        return exp2(scale * pos * pos);
+      }
+
+      vec3 horz3(vec2 pos, float off, vec2 res) {
+        vec3 b = fetch(pos, vec2(-1.0, off), res);
+        vec3 c = fetch(pos, vec2(+0.0, off), res);
+        vec3 d = fetch(pos, vec2(+1.0, off), res);
+        float dst = dist(pos, res).x;
+        float scale = hardPix;
+        float wb = gauss(dst - 1.0, scale);
+        float wc = gauss(dst + 0.0, scale);
+        float wd = gauss(dst + 1.0, scale);
+        return (b * wb + c * wc + d * wd) / (wb + wc + wd);
+      }
+
+      vec3 horz5(vec2 pos, float off, vec2 res) {
+        vec3 a = fetch(pos, vec2(-2.0, off), res);
+        vec3 b = fetch(pos, vec2(-1.0, off), res);
+        vec3 c = fetch(pos, vec2(+0.0, off), res);
+        vec3 d = fetch(pos, vec2(+1.0, off), res);
+        vec3 e = fetch(pos, vec2(+2.0, off), res);
+        float dst = dist(pos, res).x;
+        float scale = hardPix;
+        float wa = gauss(dst - 2.0, scale);
+        float wb = gauss(dst - 1.0, scale);
+        float wc = gauss(dst + 0.0, scale);
+        float wd = gauss(dst + 1.0, scale);
+        float we = gauss(dst + 2.0, scale);
+        return (a * wa + b * wb + c * wc + d * wd + e * we) / (wa + wb + wc + wd + we);
+      }
+
+      float scan(vec2 pos, float off, vec2 res) {
+        float dst = dist(pos, res).y;
+        return gauss(dst + off, hardscan);
+      }
+
+      vec3 tri(vec2 pos, vec2 res) {
+        vec3 a = horz3(pos, -1.0, res);
+        vec3 b = horz5(pos, +0.0, res);
+        vec3 c = horz3(pos, +1.0, res);
+        float wa = scan(pos, -1.0, res);
+        float wb = scan(pos, +0.0, res);
+        float wc = scan(pos, +1.0, res);
+        return a * wa + b * wb + c * wc;
+      }
+
+      vec3 mask(vec2 pos) {
+        pos.x += pos.y * 3.0;
+        vec3 m = vec3(maskDark, maskDark, maskDark);
+        pos.x = fract(pos.x / 6.0);
+        if (pos.x < 0.333) {
+          m.r = maskLight;
+        } else if (pos.x < 0.666) {
+          m.g = maskLight;
+        } else {
+          m.b = maskLight;
+        }
+        return m;
+      }
+
+      float bar(float pos, float bar) {
+        pos -= bar;
+        return pos * pos < 4.0 ? 0.0 : 1.0;
+      }
+
+      vec2 warp(vec2 uv, vec2 warpAmount) {
+        uv = uv * 2.0 - 1.0;
+        vec2 offset = abs(uv.yx) / vec2(warpAmount.x, warpAmount.y);
+        uv = uv + uv * offset * offset;
+        uv = uv * 0.5 + 0.5;
+        return uv;
+      }
+
+      void drawVig(inout vec3 color, vec2 uv) {
+        float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+        vignette = clamp(pow(abs(16.0 * vignette), 0.1), 0.0, 1.0);
+        color *= vignette;
+      }
+
+      void main(void) {
+        vec2 warpAmount = vec2(7.0, 5.0);
+        vec2 res = vec2(resolution.x / 4.0, resolution.y / 3.0);
+        vec2 uv = vUv;
+        float vig = (0.0 + 1.0 * 21.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y));
+        float v = exp(-0.01 * length(uv)) * vig;
+        vec2 pos = mix(uv, warp(uv, warpAmount), 0.75);
+        vec4 color = vec4(tri(pos, res) * mask(gl_FragCoord.xy), 1.0);
+        color.xyz = toSRGB(color.xyz * 2.0);
+        color = mix(color, color * v, 0.7);
+        gl_FragColor = vec4(color.xyz, 1.0);
+      }"
+    >
+    </m-shader>
+  </m-shader>
+
+  <!-- Disco thingy -->
+  <m-shader
+    id="discoThingy"
+    audio="my-audio"
+    z="-7"
+    x="-12"
+    rx="-10"
+    width="10"
+    height="10"
+    frag="
+    precision highp float;
+    uniform sampler2D prgm1Texture;
+    uniform sampler2D prgm2Texture;
+
+    void main() {
+      vec2 uv = vUv;
+      vec4 prgm1 = texture2D(prgm1Texture, uv);
+      vec4 prgm2 = texture2D(prgm2Texture, uv);
+      vec3 color = prgm2.xyz;
+      gl_FragColor = vec4(color, 1.0);
+    }
+  "
+  >
+    <!-- prgm1Texture -->
+    <m-shader
+      frag="
+      const float PI = acos(-1.0);
+      const float TAU = PI * 2.0;
+      const float SQRT3 = sqrt(3.0);
+      const float TAN30 = SQRT3 / 3.0;
+      const float HALFPI = PI / 2.0;
+      const float TTP = 1.0 / 3.0;
+      const float SSP = 1.0 / 1.5;
+      const float STH = 1.0 / 6.0;
+      const float T1R = 120.0;
+      const float T2R = T1R * 3.0;
+
+      float rand(vec2 uv) {
+        float d = dot(uv.xy, vec2(12.9898, 78.233));
+        return fract(sin(d) * 43758.545312);
+      }
+
+      float dfNoise21(vec2 uv) {
+        vec3 p = fract(vec3(uv.xyx) * 0.1031);
+        p += dot(p, p.yzx + 33.33);
+        return fract((p.x + p.y) * p.z);
+      }
+
+      float fbm(vec2 uv) {
+        float z = 2.0;
+        float c = 0.0;
+        vec2 u = uv;
+        for(float e = 1.0; e < 6.0; e++) {
+          c += abs(
+            ((mix(dfNoise21(u), rand(u), 0.5) - 0.5) * 2.0)
+          ) / z;
+          z=z*2.,uv=uv*2.;
+        }
+        return c;
+      }
+
+      mat2 rotate(float x) {
+        float c = cos(x);
+        float s = sin(x);
+        return mat2( c, -s, s, c);
+      }
+
+      float dualFBM(vec2 a) {
+        vec2 c=a*.7;
+        vec2 b=vec2(fbm(c*1.65),fbm(c*1.7));b=(b-.5)*.2,a+=b;
+        return fbm(a*rotate(.2));
+      }
+
+      vec2 curve(vec2 uv) {
+        uv.x *= 1.0 + pow(abs(uv.y / 5.0), 2.0);
+        uv.y *= 1.0 + pow(abs(uv.x / 4.0), 2.0);
+        uv = uv * 0.92 + 0.04;
+        return uv;
+      }
+
+      float ssin(float t) {
+        return (2.0 / PI) * atan(sin(TAU * t * 0.5) / 0.1) * 2.0;
+      }
+
+      float nzClamp(float x) {
+        return clamp(x, 0.1, 1.0);
+      }
+
+      vec3 nzClamp(vec3 x) {
+        return clamp(x, 0.1, 1.0);
+      }
+
+      vec3 hsv2rgb(vec3 c) {
+        c.yz = clamp(c.yz, 0.0, 1.0);
+        vec3 t = vec3(0.0, SSP, TTP);
+        vec3 ct = cos(PI * (c.x + t)) - 1.0;
+        return c.z * (1.0 + 0.5 * c.y * ct);
+      }
+
+      vec3 hueRotate(vec3 c, float a) {
+        vec2 zhPI = vec2(0.0, HALFPI);
+        vec2 s = sin(vec2(radians(a)) + zhPI);
+        vec3 rot = vec3(TAN30, s);
+        vec3 cc = cross(rot.xxx, c);
+        float dc = dot(rot.xxx, c);
+        return mix(rot.xxx * dc, c, rot.z) + cc * rot.y;
+      }
+
+      void main() {
+        vec2 uv = vUv * 2.0 - 1.0;
+        float ar = resolution.x / resolution.y;
+        uv.x *= ar;
+        vec2 c = curve(vUv);
+        float t1 = mod(time * 6.0, T1R);
+        float t2 = mod(time * 0.3, T2R);
+        float ot1 = nzClamp(ssin(t2 * STH) + 1.0);
+        float ot2 = nzClamp(ssin(t2 * TTP) + 1.0);
+        float T = 2.0 - mix(mix(1.0, 0.125, ot2), mix(0.5, 0.25, ot2), ot1) * 0.5;
+        uv *= 1.0 - 0.2 * cos(uv.yx) * sin(PI / 10.0);
+        uv *= 9.0 * T;
+        uv.x += sin(0.125 * uv.y + time) * 0.1;
+        uv.y += cos(0.125 * uv.x + time) * 0.1;
+        float f = fft * 0.3;
+        f *= f;
+        float fbmA = dualFBM(floor(uv)) + f;
+        float fbmB = dualFBM(floor(uv * 0.5)) + f;
+        float fbmC = dualFBM(floor(uv * 0.25)) + f;
+        float fbmD = dualFBM(floor(uv * 0.125))+f;
+        float rnd = nzClamp(mix(mix(fbmA, fbmD, ot2), mix(fbmB, fbmC, ot2), ot1));
+        vec2 black = clamp(smoothstep(2.5, 0.0, cos(uv * TAU)), 0.1, 0.9);
+        vec3 colA = clamp(
+          hsv2rgb(vec3(8.0 * cos(rnd), 1.5 / rnd, 5.0 * pow(abs(rnd), rnd))), 0.5, 0.9
+        );
+        vec3 colB = clamp(
+          hsv2rgb(vec3(7.0 * cos(fbmA), 1.5 / fbmA, 5.0 * pow(abs(fbmA), abs(fbmA)))), 0.2, 0.9
+        );
+        float p = nzClamp(black.x * black.y * smoothstep(0.9, 0.2, length(fract(uv) - 0.5)));
+        float u = nzClamp(0.5 + 0.5 * cos(rnd * t1 + TAU));
+        colA *= p; colB *= p; colA *= u; colB *= u;
+        vec3 cA = colA;
+        vec3 v = sqrt(colA * colA * colB);
+        vec3 w = sqrt(colA * colA / colB);
+        cA = clamp(cA * 2.0, 0.1, 0.9);
+        vec3 cB = nzClamp(sqrt(mix(mix(cA, colB, ot2),mix(v, w, ot2), ot1) / w * v));
+        cB = hueRotate(cB, 210.);
+        cB *= (0.99 + 0.01 * sin(110.0 * t1)) * 5.0;
+        float vig = 16.0 * c.x * c.y * (1.0 - c.x) * (1.0 - c.y);
+        cB *= vec3(pow(abs(vig), 0.5));
+        if (c.x < 0.0 || c.x > 1.0) { cB *= 0.0; }
+        if (c.y < 0.0 || c.y > 1.0) { cB *= 0.0; }
+        vec4 color = vec4(cB * 2.0, colA.x * colB.x * cA.x + p * cA.x + p * 0.95);
+        color.xyz *= cA.x * 0.25; //(1.0 - vec3(cA.x));
+        gl_FragColor=clamp(color * fbmA * 2.0, 0.0, 1.0);
+      }
+    "
+    >
+    </m-shader>
+    <!-- prgm2Texture -->
+    <m-shader
+      frag="
+      precision highp float;
+      uniform sampler2D prgm1Texture;
+
+      const float PI = acos(-1.0);
+      const float TAU = PI * 2.0;
+
+      const int NUM_SAMPLES = 32;
+      const float Density = 0.5;
+      const float Exposure = 0.3;
+
+      float rand(vec2 uv, float t) {
+        float seed = dot(uv, vec2(12.9898, 78.233));
+        return fract(sin(seed) * 43758.5453123 + t);
+      }
+
+      float gaussian(float z, float u, float o) {
+        return (
+          (1.0 / (o * sqrt(TAU))) *
+          (exp(-(((z - u) * (z - u)) / (2.0 * (o * o)))))
+        );
+      }
+
+      vec3 gaussgrain(float t) {
+        vec2 ps = vec2(1.01) / resolution.xy;
+        vec2 uv = gl_FragCoord.xy * ps;
+        float noise = rand(uv, t);
+        noise = gaussian(noise, 0.0, 0.5);
+        return vec3(noise);
+      }
+
+      void main() {
+        float Weight = 1. + fft * 0.3;
+        vec2 uv = vUv;
+        uv.x += sin(0.0625 * uv.y + time) * 0.025;
+        uv.y += cos(0.0625 * uv.x + time) * 0.025;
+        vec2 dist = uv - 0.5;
+        dist.x += sin(0.125 * dist.y + time) * 0.1;
+        dist.y += cos(0.125 * dist.x + time) * 0.1;
+        float Density = 0.75 + 0.2 * sin(2.0 * radians(360.0));
+        dist *= 1.0 / float(NUM_SAMPLES) * Density;
+        float frameScale = 29.97;
+        float frameTime = floor(time * frameScale) / frameScale;
+        vec3 g = gaussgrain(frameTime) * 0.3;
+        vec3 color = texture2D(prgm1Texture, uv).rgb;
+        vec3 cc = color;
+        float illuminationDecay = 1.0;
+        for (int i = 0; i < NUM_SAMPLES; i++)   {
+          uv -= dist;
+          vec3 sample_ = texture2D(prgm1Texture, uv + dist * rand(uv, time)).rgb + g;
+          sample_ *= illuminationDecay * Weight;
+          color += sample_;
+          float Decay = 0.5 + fft * 0.2;
+          illuminationDecay *= Decay;
+        }
+        gl_FragColor = vec4(mix(color * color * Exposure, cc, 0.5), 1.0);
+      }
+      "
+    >
+    </m-shader>
+  </m-shader>
+
+  <!-- Position Probe Shader -->
+  <m-shader
+    id="flamingAutomata"
+    audio="my-audio"
+    z="4"
+    x="0"
+    y="-7.4"
+    sx="1.5"
+    sy=".75"
+    rx="90"
+    width="50"
+    height="30"
+    probe="my-position-probe"
+    collision-interval="50"
+    frag="
+  precision highp float;
+  uniform sampler2D prgm3Texture;
+
+  void main(void) {
+    vec2 uv = vUv;
+    vec4 prgm3 = texture(prgm3Texture, uv);
+    gl_FragColor = prgm3;
+  }
+"
+  >
+    <!-- prgm1Texture -->
+    <m-shader
+      frag="
+    uniform sampler2D prgm1Texture;
+    uniform vec2 mouse;
+    const float PI = acos(-1.0);
+    const float TAU = PI * 2.0;
+    const float hk = 1.0 / sqrt(3.0);
+
+    #define cSize       12.0, 12.0
+    #define cPad        3.0, 3.0
+    #define baseColor   0.01, 0.01, 0.01, 1.0
+    #define mouseColor  0.1, 0.9, 0.7, 1.0
+    #define mouseRadius 32.0
+    #define fadeOut     0.0047
+
+    const vec2 neighbours[8] = vec2[8](
+      vec2(-1.0, -1.0),
+      vec2(-1.0, +0.0),
+      vec2(-1.0, +1.0),
+      vec2(+0.0, -1.0),
+      vec2(+0.0, +1.0),
+      vec2(+1.0, -1.0),
+      vec2(+1.0, +0.0),
+      vec2(+1.0, +1.0)
+    );
+
+    float ssin(float t) {
+      return (2.0 / PI) * atan(sin(TAU * t * 0.5) / 0.1) * 2.0;
+    }
+
+    float osc(float s, float e, float t, float ts) {
+      return (e - s) / 2.0 + s + sin(t * ts) * (e - s) * 0.5;
+    }
+
+    vec3 hueShift(vec3 col, float a) {
+      const vec3 k = vec3(hk);
+      float ca = cos(a);
+      return vec3(col * ca + cross(k, col) * sin(a) + k * dot(k, col) * (1.0 - ca));
+    }
+
+    vec4 getBounds(vec2 pixel, vec2 cellSize, vec2 cellPad) {
+      vec2 reach = cellSize + cellPad;
+      vec2 index = floor(pixel / reach);
+      vec2 start = reach * index;
+      vec2 limit = reach * (index + vec2(1.0));
+      return vec4(start, limit);
+    }
+
+    vec2 getCenter(vec2 pixel, vec2 cellSize, vec2 cellPad) {
+      vec4 bounds = getBounds(pixel, cellSize, cellPad);
+      vec2 start = bounds.xy;
+      vec2 limit = bounds.zw;
+      return (start + limit) * 0.5;
+    }
+
+    float isPixelInside(vec2 pixel, vec2 cellSize, vec2 cellPad) {
+      vec4 bounds = getBounds(pixel, cellSize, cellPad);
+      vec2 limit = bounds.zw;
+      float outside = float(
+        (pixel.x > (limit.x - cellPad.x)) ||
+        (pixel.y > (limit.y - cellPad.y))
+      );
+      float inside = 1.0 - outside;
+      return inside;
+    }
+
+    vec2 inRadius(vec2 canvas_cell, vec2 cursor_cell, float radius) {
+      vec2 v = canvas_cell - cursor_cell;
+      float d = dot(v, v);
+      float rad = radius * radius;
+      float inside = 1.0 - step(rad, d);
+      return vec2(inside, d);
+    }
+
+    vec4 getColor(vec2 pixel, vec2 cellSize, vec2 cellPad, vec4 brushColor, float rad, vec2 mousePixel) {
+      vec2 center = getCenter(pixel, cellSize, cellPad);
+      vec2 mouseCenter = getCenter(mousePixel.xy, cellSize, cellPad);
+      vec2 insideAndDistance = inRadius(center, mouseCenter, rad);
+      float insideRadius = insideAndDistance[0];
+      float dist = insideAndDistance[1];
+      vec4 drawnColor = insideRadius * (1.0 - dist / rad / rad) * brushColor;
+      return drawnColor;
+    }
+
+    vec4 getAvg(vec2 pixel, vec2 cellSize, vec2 cellPad, vec2 res) {
+      vec2 curCenter = getCenter(pixel, cellSize, cellPad);
+      vec2 fullCellSize = cellSize + cellPad;
+      vec4 averageColor = vec4(0.0);
+      for(int i = 0; i < 8; i++) {
+        vec2 neighCellShift = neighbours[i] * fullCellSize;
+        vec2 neighCellCenter = curCenter + neighCellShift;
+        vec2 neighUV = neighCellCenter / res;
+        vec4 neighColor = texture(prgm1Texture, neighUV);
+        averageColor += neighColor;
+        }
+        return averageColor / 8.0;
+    }
+
+    vec2 getPattern(float rA, float rB, float angle) {
+      float x = (rA - rB) * cos(angle) + rA * cos(((rA - rB) / rB) * angle);
+      float y = (rA - rB) * sin(angle) - rA * sin(((rA - rB) / rB) * angle);
+      return vec2(x, y) * 1.2;
+    }
+
+    void main(void) {
+      vec2 uv = vUv;
+      float t = time * 1.5;
+      float o = osc(-0.1, 0.2, time, 0.0625);
+      vec2 v2o = vec2(0.75 + o, 0.85 + o);
+      vec2 rawMouse = (mouse) * resolution.xy;
+      vec2 infPattern = vec2(cos(t), sin(t) * cos(t));
+      vec2 pattern = getPattern(0.4, 0.1, t);
+      float transition = clamp(ssin(time * 0.05), 0.0, 1.0);
+      vec2 pat = mix(infPattern, pattern, transition);
+      vec2 inf = ((pat * v2o) * 0.5 + 0.5) * resolution.xy;
+      vec2 mousePixel = (length(mouse) < 3.0) ? rawMouse : inf;
+      vec4 prevFrame = texture(prgm1Texture, uv) * (1.0 - fadeOut);
+      prevFrame *= float(prevFrame.a > 1e-5);
+      vec4 cellColor = vec4(baseColor);
+      vec4 brushColor = vec4(mouseColor);
+      float brushRadius = mouseRadius;
+      vec2 cellSize = vec2(cSize);
+      vec2 cellPad = vec2(cPad);
+      float inside = isPixelInside(gl_FragCoord.xy, cellSize, cellPad);
+      vec4 curDrawnColor = (
+        getColor(
+          gl_FragCoord.xy, cellSize, cellPad,
+          vec4(hueShift(brushColor.xyz, TAU * fft + time * 3.0) * 3.0, brushColor.a),
+          brushRadius, mousePixel
+        )
+      );
+      vec4 diff = curDrawnColor - prevFrame;
+      diff *= float(diff.a > 0.0);
+      vec4 straightBrushedColor = inside * (prevFrame + diff);
+      vec4 averageColor = getAvg(gl_FragCoord.xy, cellSize, cellPad, resolution.xy);
+      gl_FragColor = mix(straightBrushedColor, averageColor, (fadeOut * cellSize.x * 0.25));
+      gl_FragColor = clamp(vec4(0.0), vec4(1.0), gl_FragColor);
+    }
+"
+    >
+    </m-shader>
+    <!-- prgm2Texture -->
+    <m-shader
+      frag="
+    precision highp float;
+
+    uniform sampler2D prgm1Texture;
+
+    const float PI = acos(-1.0);
+    const float TAU = PI * 2.0;
+    const vec2 hashv2 = vec2(12.9898, 78.233);
+    const float hashS = 43758.5453123;
+
+    #define cSize     12.0, 12.0
+    #define cPad      3.0, 3.0
+    #define baseColor 0.01, 0.02, 0.02, 1.0
+
+    #define try(new) old = mix (new, old, step (length (old-ref), length (new-ref)));
+    vec3 findClosest(vec3 ref) {
+      vec3 old = vec3 (100.0 * 255.0);
+      try(vec3(  0.0,   0.0,   0.0)); //  0 - black           (YPbPr = 0.0  ,  0.0 ,  0.0 )
+      try(vec3(133.0,  59.0,  81.0)); //  1 - magenta         (YPbPr = 0.25 ,  0.0 ,  0.5 )
+      try(vec3( 80.0,  71.0, 137.0)); //  2 - dark blue       (YPbPr = 0.25 ,  0.5 ,  0.0 )
+      try(vec3(233.0,  93.0, 240.0)); //  3 - purple          (YPbPr = 0.5  ,  1.0 ,  1.0 )
+      try(vec3(  0.0, 104.0,  82.0)); //  4 - dark green      (YPbPr = 0.25 ,  0.0 , -0.5 )
+      try(vec3(146.0, 146.0, 146.0)); //  5 - gray #1         (YPbPr = 0.5  ,  0.0 ,  0.0 )
+      try(vec3(  0.0, 168.0, 241.0)); //  6 - medium blue     (YPbPr = 0.5  ,  1.0 , -1.0 )
+      try(vec3(202.0, 195.0, 248.0)); //  7 - light blue      (YPbPr = 0.75 ,  0.5 ,  0.0 )
+      try(vec3( 81.0,  92.0,  15.0)); //  8 - brown           (YPbPr = 0.25 , -0.5 ,  0.0 )
+      try(vec3(235.0, 127.0,  35.0)); //  9 - orange          (YPbPr = 0.5  , -1.0 ,  1.0 )
+      try(vec3(241.0, 166.0, 191.0)); // 11 - pink            (YPbPr = 0.75 ,  0.0 ,  0.5 )
+      try(vec3(  0.0, 201.0,  41.0)); // 12 - green           (YPbPr = 0.5  , -1.0 , -1.0 )
+      try(vec3(203.0, 211.0, 155.0)); // 13 - yellow          (YPbPr = 0.75 , -0.5 ,  0.0 )
+      try(vec3(154.0, 220.0, 203.0)); // 14 - aqua            (YPbPr = 0.75 ,  0.0 , -0.5 )
+      try(vec3(255.0, 255.0, 255.0)); // 15 - white           (YPbPr = 1.0  ,  0.0 ,  0.0 )
+      try(vec3(120.0,  41.0,  34.0)); //  2 - red             (YPbPr = 0.25 , -0.383 ,  0.924 )
+      try(vec3(135.0, 214.0, 221.0)); //  3 - cyan            (YPbPr = 0.75 ,  0.383 , -0.924 )
+      try(vec3(170.0,  95.0, 182.0)); //  4 - purple          (YPbPr = 0.5  ,  0.707 ,  0.707 )
+      try(vec3( 85.0, 160.0,  73.0)); //  5 - green           (YPbPr = 0.5  , -0.707 , -0.707 )
+      try(vec3( 64.0,  49.0, 141.0)); //  6 - blue            (YPbPr = 0.25 ,  1.0   ,  0.0   )
+      try(vec3(191.0, 206.0, 114.0)); //  7 - yellow          (YPbPr = 0.75 , -1.0   ,  0.0   )
+      try(vec3(170.0, 116.0,  73.0)); //  8 - orange          (YPbPr = 0.5  , -0.707 ,  0.707 )
+      try(vec3(234.0, 180.0, 137.0)); //  9 - light orange    (YPbPr = 0.75 , -0.707 ,  0.707 )
+      try(vec3(184.0, 105.0,  98.0)); // 10 - light red       (YPbPr = 0.5  , -0.383 ,  0.924 )
+      try(vec3(199.0, 255.0, 255.0)); // 11 - light cyan      (YPbPr = 1.0  ,  0.383 , -0.924 )
+      try(vec3(234.0, 159.0, 246.0)); // 12 - light purple    (YPbPr = 0.75 ,  0.707 ,  0.707 )
+      try(vec3(148.0, 224.0, 137.0)); // 13 - light green     (YPbPr = 0.75 , -0.707 , -0.707 )
+      try(vec3(128.0, 113.0, 204.0)); // 14 - light blue      (YPbPr = 0.5  ,  1.0   ,  0.0   )
+      try(vec3(255.0, 255.0, 178.0)); // 15 - light yellow    (YPbPr = 1.0  , -1.0   ,  0.0   )
+      try(vec3(161.0,  77.0,  67.0)); //  2 - red             (YPbPr = 0.313 , -0.383 ,  0.924 )
+      try(vec3(106.0, 193.0, 200.0)); //  3 - cyan            (YPbPr = 0.625 ,  0.383 , -0.924 )
+      try(vec3(162.0,  86.0, 165.0)); //  4 - purple          (YPbPr = 0.375 ,  0.707 ,  0.707 )
+      try(vec3( 92.0, 173.0,  95.0)); //  5 - green           (YPbPr = 0.5   , -0.707 , -0.707 )
+      try(vec3( 79.0,  68.0, 156.0)); //  6 - blue            (YPbPr = 0.25  ,  1.0   ,  0.0   )
+      try(vec3(203.0, 214.0, 137.0)); //  7 - yellow          (YPbPr = 0.75  , -1.0   ,  0.0   )
+      try(vec3(163.0, 104.0,  58.0)); //  8 - orange          (YPbPr = 0.375 , -0.707 ,  0.707 )
+      try(vec3(110.0,  83.0,  11.0)); //  9 - brown           (YPbPr = 0.25  , -0.924 ,  0.383 )
+      try(vec3(204.0, 127.0, 118.0)); // 10 - light red       (YPbPr = 0.5   , -0.383 ,  0.924 )
+      try(vec3( 99.0,  99.0,  99.0)); // 11 - dark grey       (YPbPr = 0.313 ,  0.0   ,  0.0   )
+      try(vec3(139.0, 139.0, 139.0)); // 12 - grey            (YPbPr = 0.469 ,  0.0   ,  0.0   )
+      try(vec3(155.0, 227.0, 157.0)); // 13 - light green     (YPbPr = 0.75  , -0.707 , -0.707 )
+      try(vec3(138.0, 127.0, 205.0)); // 14 - light blue      (YPbPr = 0.469 ,  1.0   ,  0.0   )
+      try(vec3(175.0, 175.0, 175.0)); // 15 - light grey      (YPbPr = 0.625  , 0.0   ,  0.0   )
+      try(vec3( 62.0, 184.0,  73.0)); //  2 - medium green    (YPbPr = 0.53 , -0.509 , -0.755 )
+      try(vec3(116.0, 208.0, 125.0)); //  3 - light green     (YPbPr = 0.67 , -0.377 , -0.566 )
+      try(vec3( 89.0,  85.0, 224.0)); //  4 - dark blue       (YPbPr = 0.40 ,  1.0   , -0.132 )
+      try(vec3(128.0, 128.0, 241.0)); //  5 - light blue      (YPbPr = 0.53 ,  0.868 , -0.075 )
+      try(vec3(185.0,  94.0,  81.0)); //  6 - dark red        (YPbPr = 0.47 , -0.321 ,  0.679 )
+      try(vec3(101.0, 219.0, 239.0)); //  7 - cyan            (YPbPr = 0.73 ,  0.434 , -0.887 )
+      try(vec3(219.0, 101.0,  89.0)); //  8 - medium red      (YPbPr = 0.53 , -0.377 ,  0.868 )
+      try(vec3(255.0, 137.0, 125.0)); //  9 - light red       (YPbPr = 0.67 , -0.377 ,  0.868 )
+      try(vec3(204.0, 195.0,  94.0)); // 10 - dark yellow     (YPbPr = 0.73 , -0.755 ,  0.189 )
+      try(vec3(222.0, 208.0, 135.0)); // 11 - light yellow    (YPbPr = 0.80 , -0.566 ,  0.189 )
+      try(vec3( 58.0, 162.0,  65.0)); // 12 - dark green      (YPbPr = 0.47 , -0.453 , -0.642 )
+      try(vec3(183.0, 102.0, 181.0)); // 13 - magenta         (YPbPr = 0.53 ,  0.377 ,  0.491 )
+      try(vec3(204.0, 204.0, 204.0)); // 14 - grey            (YPbPr = 0.80 ,  0.0   ,  0.0   )
+      try(vec3(226.0, 226.0, 226.0)); // L90
+      try(vec3(198.0, 198.0, 198.0)); // L80
+      try(vec3(171.0, 171.0, 171.0)); // L70
+      try(vec3(145.0, 145.0, 145.0)); // L60
+      try(vec3(119.0, 119.0, 119.0)); // L50
+      try(vec3( 94.0,  94.0,  94.0)); // L40
+      try(vec3( 71.0,  71.0,  71.0)); // L30
+      try(vec3( 48.0,  48.0,  48.0)); // L20
+      try(vec3( 27.0,  27.0,  27.0)); // L10
+      return old ;
+    }
+
+    float gaussian(float z, float u, float o) {
+      return (
+        (1.0 / (o * sqrt(TAU))) *
+        (exp(-(((z - u) * (z - u)) / (2.0 * (o * o)))))
+      );
+    }
+
+    vec3 gaussgrain(float t) {
+      vec2 ps = vec2(1.0) / resolution.xy;
+      vec2 uv = gl_FragCoord.xy * ps;
+      float seed = dot(uv, hashv2);
+      float noise = fract(sin(seed) * hashS + t);
+      noise = gaussian(noise, 0.0, 0.5);
+      return vec3(noise);
+    }
+
+    vec4 getBounds(vec2 pixel, vec2 cellSize, vec2 cellPad) {
+      vec2 reach = cellSize + cellPad;
+      vec2 index = floor(pixel / reach);
+      vec2 start = reach * index;
+      vec2 limit = reach * (index + vec2(1.0));
+      return vec4(start, limit);
+    }
+
+    float isPixelInside(vec2 pixel, vec2 cellSize, vec2 cellPad) {
+      vec4 bounds = getBounds(pixel, cellSize, cellPad);
+      vec2 limit = bounds.zw;
+      float outside = float(
+        (pixel.x > (limit.x - cellPad.x)) ||
+        (pixel.y > (limit.y - cellPad.y))
+      );
+      float inside_cell = 1.0 - outside;
+      return inside_cell;
+    }
+
+    void main(void) {
+      vec2 uv = vUv;
+      float frameScale = 29.97;
+      float frameTime = floor(time * frameScale) / frameScale;
+      //vec3 gA = gaussgrain(frameTime) * 0.42;
+      //vec3 gB = gaussgrain(frameTime + 0.1) * 0.42;
+      vec4 cellColor = vec4(baseColor);
+      vec2 cellSize = vec2(cSize);
+      vec2 cellPad = vec2(cPad);
+      float inside = clamp(isPixelInside(gl_FragCoord.xy, cellSize, cellPad), 0.0, 1.0);
+      vec4 color = texture(prgm1Texture, uv);
+      // color.xyz += (gA + gB) * 1e-2;
+      color.xyz = mix(findClosest(color.xyz * 255.0) / 255.0, color.xyz, 0.42);
+      gl_FragColor = inside * (cellColor + color);
+      gl_FragColor.a = 1.0;
+    }"
+    ></m-shader>
+    <!-- prgm3Texture -->
+    <m-shader
+      frag="
+    precision highp float;
+
+    uniform sampler2D prgm2Texture;
+
+    const float PI = acos(-1.0);
+    const float TAU = PI * 2.0;
+    const vec2 hashv2 = vec2(12.9898, 78.233);
+    const float hashS = 43758.5453123;
+
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(41.0, 289.0))) * hashS);
+    }
+
+    float gaussian(float z, float u, float o) {
+      return (
+        (1.0 / (o * sqrt(TAU))) *
+        (exp(-(((z - u) * (z - u)) / (2.0 * (o * o)))))
+      );
+    }
+
+    vec3 gaussgrain(float t) {
+      vec2 ps = vec2(1.0) / resolution.xy;
+      vec2 uv = gl_FragCoord.xy * ps;
+      float seed = dot(uv, hashv2);
+      float noise = fract(sin(seed) * hashS + t);
+      noise = gaussian(noise, 0.0, 0.5);
+      return vec3(noise);
+    }
+
+    void main(void) {
+      vec2 uv = vUv;
+      vec4 prgm2 = texture(prgm2Texture, uv);
+      float frameScale = 29.97;
+      float frameTime = floor(time * frameScale) / frameScale;
+      vec4 col = prgm2;
+      float w = 0.1;
+      vec2 a = vec2(uv.x - 0.5, uv.y - 0.66);
+      vec2 b = a * 0.15 / float(10.0);
+      uv += b * (hash(uv.xy + fract(time)) * 2.0);
+      for (float i = 1.0; i > 0.995; i-= 0.0001) {
+        uv -= 0.5; uv *= i; uv += 0.5;
+        col += texture(prgm2Texture, uv) * w * 1.7;
+        w *= 0.95;
+      }
+      //vec3 gA = gaussgrain(frameTime) * 0.42;
+      //vec3 gB = gaussgrain(frameTime + 0.1) * 0.42;
+      //col *= 0.9; col.xyz += gA * gB * 0.0625;
+      gl_FragColor = mix(prgm2, col, 0.3);
+    }"
+    ></m-shader>
+  </m-shader>
+
+  <!-- Points Shader -->
+  <m-shader
+    audio="my-audio"
+    width="10"
+    height="5"
+    y="-4"
+    z="-5"
+    rx="90"
+    vert="
+    varying float vIntensity;
+    varying vec3 vPosition;
+
+    void main() {
+      vec2 uv = vUv;
+      float dist = distance(uv, vec2(0.5));
+      float gv = fract(dist * BIN_COUNT);
+      float gd = floor(dist * BIN_COUNT) / BIN_COUNT;
+      vIntensity = texture2D(fftTexture, vec2(gd, 0.5)).r;
+      gl_PointSize = 5.;
+
+      float amplitude = 2.5;
+      vPosition = position;
+      vPosition.z += vIntensity * amplitude;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(vPosition, 1.0);
+    }
+  "
+    frag="
+    varying float vIntensity;
+
+    vec3 palette( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d ) {
+        return a + b*cos( 6.28318*(c*t+d) );
+    }
+
+    void main() {
+      vec2 uv = vUv;
+      vec3 color = vec3(vIntensity);
+      float dist = distance(uv, vec2(0.5));
+      float gv = fract(dist * BIN_COUNT);
+      float gd = floor(dist * BIN_COUNT) / BIN_COUNT;
+
+      color = palette(
+        vIntensity,
+        vec3(0.5),
+        vec3(.5),
+        vec3(1.0, 1., 1.0),
+        vec3(.5, 0.3, 0.85));
+
+      gl_FragColor = vec4(color, 1. - step(.5, smoothstep(.45, .5, dist)));
+    }
+  "
+    collide="false"
+    type="points"
+  ></m-shader>
+</m-group>
+
+<script>
+  function updateAttributesLabel(videoTag) {
+    const attributes = [];
+    for (const attr of videoTag.getAttributeNames()) {
+      const val = videoTag.getAttribute(attr);
+      attributes.push(`${attr}="${val}"`);
+    }
+    const attributesLabel = videoTag.querySelector(".attributes-label");
+    if (attributesLabel) {
+      attributesLabel.setAttribute("content", `<m-audio ${attributes.join(" ")}></m-audio>`);
+    }
+  }
+
+  function restart(videoTag) {
+    videoTag.setAttribute("pause-time", document.timeline.currentTime);
+    videoTag.setAttribute("start-time", document.timeline.currentTime);
+    videoTag.removeAttribute("pause-time");
+    updateAttributesLabel(videoTag);
+  }
+
+  function toggleEnabled(videoTag) {
+    const enabled = videoTag.getAttribute("enabled") !== "false";
+    videoTag.setAttribute("enabled", (!enabled).toString());
+    updateAttributesLabel(videoTag);
+  }
+
+  function pause(videoTag) {
+    videoTag.setAttribute("pause-time", document.timeline.currentTime);
+    updateAttributesLabel(videoTag);
+  }
+
+  function unpause(videoTag) {
+    videoTag.removeAttribute("pause-time");
+    updateAttributesLabel(videoTag);
+  }
+
+  function resume(videoTag) {
+    if (!videoTag.hasAttribute("pause-time")) return;
+    const startTime = parseFloat(videoTag.getAttribute("start-time")) || 0;
+    const pauseTime = parseFloat(videoTag.getAttribute("pause-time")) || 0;
+    const playedDuration = pauseTime - startTime;
+    const newStartTime = document.timeline.currentTime - playedDuration;
+    videoTag.removeAttribute("pause-time");
+    videoTag.setAttribute("start-time", newStartTime);
+    updateAttributesLabel(videoTag);
+  }
+
+  for (const video of document.querySelectorAll("m-audio")) {
+    updateAttributesLabel(video);
+  }
+</script>

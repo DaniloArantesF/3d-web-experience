@@ -19,8 +19,8 @@
     "@mml-io/3d-web-user-networking": "^0.17.0",
     "@mml-io/3d-web-voice-chat": "^0.17.0",
     "@mml-io/networked-dom-document": "^0.15.0",
-    "mml-web": "0.15.0",
-    "mml-web-runner": "0.15.0",
+    "mml-web": "https://gitpkg.now.sh/DaniloArantesF/mml_plus_plus/packages/mml-web?feature/m-shader",
+    "mml-web-runner": "https://gitpkg.now.sh/DaniloArantesF/mml_plus_plus/packages/mml-web-runner?feature/m-shader",
     "three": "0.163.0"
   },
   "devDependencies": {
