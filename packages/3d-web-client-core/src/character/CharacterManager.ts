@@ -1,161 +1,145 @@
 import { PositionAndRotation } from "mml-web";
-import { Camera, Group, Object3D, PerspectiveCamera, Vector3 } from "three";
+import { Euler, Group, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
-import { ease, getSpawnPositionInsideCircle } from "../helpers/math-helpers";
 import { KeyInputManager } from "../input/KeyInputManager";
+import { VirtualJoystick } from "../input/VirtualJoystick";
+import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
+import { TweakPane } from "../tweakpane/TweakPane";
 
-import { Character, CharacterDescription } from "./Character";
+import { AnimationConfig, Character, CharacterDescription } from "./Character";
+import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState, CharacterState } from "./CharacterState";
+import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
+import { encodeCharacterAndCamera } from "./url-position";
 
-function encodeCharacterAndCamera(character: Object3D, camera: PerspectiveCamera): string {
-  return [
-    ...character.position.toArray(),
-    ...character.quaternion.toArray(),
-    ...camera.position.toArray(),
-    ...camera.quaternion.toArray(),
-  ].join(",");
-}
-
-function decodeCharacterAndCamera(hash: string, character: Object3D, camera: Camera) {
-  const values = hash.split(",").map(Number);
-  character.position.fromArray(values.slice(0, 3));
-  character.quaternion.fromArray(values.slice(3, 7));
-  camera.position.fromArray(values.slice(7, 10));
-  camera.quaternion.fromArray(values.slice(10, 14));
-}
+export type CharacterManagerConfig = {
+  composer: Composer;
+  characterModelLoader: CharacterModelLoader;
+  collisionsManager: CollisionsManager;
+  cameraManager: CameraManager;
+  timeManager: TimeManager;
+  keyInputManager: KeyInputManager;
+  virtualJoystick?: VirtualJoystick;
+  remoteUserStates: Map<number, CharacterState>;
+  sendUpdate: (update: CharacterState) => void;
+  animationConfig: AnimationConfig;
+  characterResolve: (clientId: number) => {
+    username: string;
+    characterDescription: CharacterDescription;
+  };
+  updateURLLocation?: boolean;
+};
 
 export class CharacterManager {
-  /*
-   TODO - re-enable updating location hash when there is a solution that waits for models to load (currently if the 
-    character was standing on a model and the page is reloaded the character falls into the model before it loads and 
-    can be trapped).
-  */
-  private updateLocationHash = false;
+  public readonly headTargetOffset = new Vector3(0, 1.3, 0);
 
-  public loadingCharacters: Map<number, Promise<Character>> = new Map();
+  private localClientId: number = 0;
 
   public remoteCharacters: Map<number, Character> = new Map();
   public remoteCharacterControllers: Map<number, RemoteController> = new Map();
 
-  private characterDescription: CharacterDescription | null = null;
-  public character: Character | null = null;
+  private localCharacterSpawned: boolean = false;
+  public localController: LocalController;
+  public localCharacter: Character | null = null;
 
-  private cameraOffsetTarget: number = 0;
-  private cameraOffset: number = 0;
+  private speakingCharacters: Map<number, boolean> = new Map();
 
   public readonly group: Group;
 
-  constructor(
-    private readonly collisionsManager: CollisionsManager,
-    private readonly cameraManager: CameraManager,
-    private readonly timeManager: TimeManager,
-    private readonly inputManager: KeyInputManager,
-    private readonly clientStates: Map<number, CharacterState>,
-    private readonly sendUpdate: (update: CharacterState) => void,
-  ) {
+  constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
   }
 
-  /* TODO: 
-    1) Separate this method into spawnLocalCharacter and spawnRemoteCharacter
-    2) Make this synchronous to avoid having loadingCharacters and instead manage
-      the mesh loading async (would allow us to show a nameplate where a remote
-      user is before the asset loads).
-  */
-  public spawnCharacter(
-    characterDescription: CharacterDescription,
+  public spawnLocalCharacter(
     id: number,
-    isLocal: boolean = false,
+    username: string,
+    characterDescription: CharacterDescription,
     spawnPosition: Vector3 = new Vector3(),
+    spawnRotation: Euler = new Euler(),
   ) {
-    this.characterDescription = characterDescription;
-    const characterLoadingPromise = new Promise<Character>((resolve) => {
-      const character = new Character(
-        characterDescription,
-        id,
-        isLocal,
-        () => {
-          if (window.location.hash && window.location.hash.length > 1) {
-            decodeCharacterAndCamera(
-              window.location.hash.substring(1),
-              character.model!.mesh!,
-              this.cameraManager.camera,
-            );
-          } else {
-            spawnPosition = getSpawnPositionInsideCircle(3, 30, id, 0.4);
-            character.model!.mesh!.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-            character.model!.mesh!.updateMatrixWorld();
-            this.sendUpdate({
-              id: id,
-              position: {
-                x: spawnPosition.x,
-                y: spawnPosition.y,
-                z: spawnPosition.z,
-              },
-              rotation: { quaternionY: 0, quaternionW: 1 },
-              state: AnimationState.idle,
-            });
-          }
-          character.model!.hideMaterialByMeshName("SK_Mannequin_2");
-          if (!isLocal) {
-            character.model?.mesh?.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-            character.model?.mesh?.updateMatrixWorld();
-            character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-          }
-          this.group.add(character.model!.mesh!);
+    const character = new Character({
+      username,
+      characterDescription,
+      animationConfig: this.config.animationConfig,
+      characterModelLoader: this.config.characterModelLoader,
+      characterId: id,
+      modelLoadedCallback: () => {
+        // character loaded callback
+      },
+      cameraManager: this.config.cameraManager,
+      composer: this.config.composer,
+      isLocal: true,
+    });
+    const quaternion = new Quaternion().setFromEuler(character.rotation);
+    this.config.sendUpdate({
+      id: id,
+      position: {
+        x: spawnPosition.x,
+        y: spawnPosition.y,
+        z: spawnPosition.z,
+      },
+      rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
+      state: AnimationState.idle,
+    });
+    this.localClientId = id;
+    this.localCharacter = character;
+    this.localController = new LocalController({
+      character: this.localCharacter,
+      id: this.localClientId,
+      collisionsManager: this.config.collisionsManager,
+      keyInputManager: this.config.keyInputManager,
+      virtualJoystick: this.config.virtualJoystick,
+      cameraManager: this.config.cameraManager,
+      timeManager: this.config.timeManager,
+    });
+    this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+    this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+    this.group.add(character);
+    this.localCharacterSpawned = true;
+  }
 
-          if (isLocal) {
-            this.character = character;
-            this.character.tooltip?.setText(`${id}`);
-          } else {
-            this.remoteCharacters.set(id, character);
-            const remoteController = new RemoteController(character, id);
-            remoteController.setAnimationFromFile(
-              AnimationState.idle,
-              characterDescription.idleAnimationFileUrl,
-            );
-            remoteController.setAnimationFromFile(
-              AnimationState.walking,
-              characterDescription.jogAnimationFileUrl,
-            );
-            remoteController.setAnimationFromFile(
-              AnimationState.running,
-              characterDescription.sprintAnimationFileUrl,
-            );
-            remoteController.setAnimationFromFile(
-              AnimationState.air,
-              characterDescription.airAnimationFileUrl,
-            );
-            remoteController.characterModel?.position.set(
-              spawnPosition.x,
-              spawnPosition.y,
-              spawnPosition.z,
-            );
-            this.remoteCharacterControllers.set(id, remoteController);
-            character.tooltip?.setText(`${id}`);
-          }
-          resolve(character);
-        },
-        this.collisionsManager,
-        this.inputManager,
-        this.cameraManager,
-        this.timeManager,
-      );
+  public setupTweakPane(tweakPane: TweakPane) {
+    tweakPane.setupCharacterController(this.localController);
+  }
+
+  public spawnRemoteCharacter(
+    id: number,
+    username: string,
+    characterDescription: CharacterDescription,
+    spawnPosition: Vector3 = new Vector3(),
+    spawnRotation: Euler = new Euler(),
+  ) {
+    const character = new Character({
+      username,
+      characterDescription,
+      animationConfig: this.config.animationConfig,
+      characterModelLoader: this.config.characterModelLoader,
+      characterId: id,
+      modelLoadedCallback: () => {
+        // character loaded callback
+      },
+      cameraManager: this.config.cameraManager,
+      composer: this.config.composer,
+      isLocal: false,
     });
 
-    this.loadingCharacters.set(id, characterLoadingPromise);
-    return characterLoadingPromise;
+    this.remoteCharacters.set(id, character);
+    character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+    character.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+    const remoteController = new RemoteController({ character, id });
+    this.remoteCharacterControllers.set(id, remoteController);
+    this.group.add(character);
   }
 
   public getLocalCharacterPositionAndRotation(): PositionAndRotation {
-    if (this.character && this.character.model && this.character.model.mesh) {
+    if (this.localCharacter && this.localCharacter && this.localCharacter) {
       return {
-        position: this.character.model.mesh.position,
-        rotation: this.character.model.mesh.rotation,
+        position: this.localCharacter.position,
+        rotation: this.localCharacter.rotation,
       };
     }
     return {
@@ -166,68 +150,105 @@ export class CharacterManager {
 
   public clear() {
     for (const [id, character] of this.remoteCharacters) {
-      this.group.remove(character.model!.mesh!);
+      this.group.remove(character);
       this.remoteCharacters.delete(id);
       this.remoteCharacterControllers.delete(id);
     }
-    if (this.character) {
-      this.group.remove(this.character.model!.mesh!);
-      this.character = null;
+    if (this.localCharacter) {
+      this.group.remove(this.localCharacter);
+      this.localCharacter = null;
     }
-    this.loadingCharacters.clear();
+  }
+
+  public setSpeakingCharacter(id: number, value: boolean) {
+    this.speakingCharacters.set(id, value);
+  }
+
+  public respawnIfPresent(id: number) {
+    const characterInfo = this.config.characterResolve(id);
+
+    if (this.localCharacter && this.localClientId == id) {
+      this.localCharacter.updateCharacter(
+        characterInfo.username,
+        characterInfo.characterDescription,
+      );
+    }
+
+    const remoteCharacter = this.remoteCharacters.get(id);
+    if (remoteCharacter) {
+      remoteCharacter.updateCharacter(characterInfo.username, characterInfo.characterDescription);
+    }
   }
 
   public update() {
-    if (this.character) {
-      this.character.update(this.timeManager.time);
-
-      if (this.character.model?.mesh) {
-        this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.13 : 0;
-        this.cameraOffset += ease(this.cameraOffsetTarget, this.cameraOffset, 0.1);
-        const targetOffset = new Vector3(0, 1.3, this.cameraOffset);
-        targetOffset.applyQuaternion(this.character.model.mesh.quaternion);
-        this.cameraManager.setTarget(this.character.position.add(targetOffset));
+    if (this.localCharacter) {
+      this.localCharacter.update(this.config.timeManager.time, this.config.timeManager.deltaTime);
+      if (this.speakingCharacters.has(this.localClientId)) {
+        this.localCharacter.speakingIndicator?.setSpeaking(
+          this.speakingCharacters.get(this.localClientId)!,
+        );
       }
 
-      if (this.character.controller) {
-        this.character.controller.update();
-        if (this.timeManager.frame % 2 === 0) {
-          this.sendUpdate(this.character.controller.networkState);
+      this.localController.update();
+      if (this.config.timeManager.frame % 2 === 0) {
+        this.config.sendUpdate(this.localController.networkState);
+      }
+
+      const targetOffset = new Vector3();
+      targetOffset
+        .add(this.headTargetOffset)
+        .applyQuaternion(this.localCharacter.quaternion)
+        .add(this.localCharacter.position);
+      this.config.cameraManager.setTarget(targetOffset);
+
+      for (const [id, update] of this.config.remoteUserStates) {
+        if (this.remoteCharacters.has(id) && this.speakingCharacters.has(id)) {
+          const character = this.remoteCharacters.get(id);
+          character?.speakingIndicator?.setSpeaking(this.speakingCharacters.get(id)!);
         }
-      }
-
-      for (const [id, update] of this.clientStates) {
         const { position } = update;
-        if (!this.remoteCharacters.has(id) && !this.loadingCharacters.has(id)) {
-          this.spawnCharacter(
-            this.characterDescription!,
+
+        if (!this.remoteCharacters.has(id) && this.localCharacterSpawned === true) {
+          const characterInfo = this.config.characterResolve(id);
+          this.spawnRemoteCharacter(
             id,
-            false,
+            characterInfo.username,
+            characterInfo.characterDescription,
             new Vector3(position.x, position.y, position.z),
-          ).then((_character) => {
-            this.loadingCharacters.delete(id);
-          });
+          );
         }
 
         const characterController = this.remoteCharacterControllers.get(id);
         if (characterController) {
-          characterController.update(update, this.timeManager.time, this.timeManager.deltaTime);
+          characterController.update(
+            update,
+            this.config.timeManager.time,
+            this.config.timeManager.deltaTime,
+          );
         }
       }
 
       for (const [id, character] of this.remoteCharacters) {
-        if (!this.clientStates.has(id)) {
-          this.group.remove(character.model!.mesh!);
+        if (!this.config.remoteUserStates.has(id)) {
+          character.speakingIndicator?.dispose();
+          this.group.remove(character);
           this.remoteCharacters.delete(id);
           this.remoteCharacterControllers.delete(id);
         }
       }
 
-      if (this.updateLocationHash && this.timeManager.frame % 60 === 0) {
-        window.location.hash = encodeCharacterAndCamera(
-          this.character.model!.mesh!,
-          this.cameraManager.camera,
+      if (
+        this.config.updateURLLocation &&
+        this.config.timeManager.frame % 60 === 0 &&
+        document.hasFocus()
+      ) {
+        const hash = encodeCharacterAndCamera(
+          this.localCharacter,
+          this.config.cameraManager.camera,
         );
+        const url = new URL(window.location.href);
+        url.hash = hash;
+        window.history.replaceState({}, "", url);
       }
     }
   }

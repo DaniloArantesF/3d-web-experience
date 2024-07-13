@@ -1,77 +1,115 @@
-import { Color, Vector3 } from "three";
+import { Color, Group, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
-import { CollisionsManager } from "../collisions/CollisionsManager";
-import { KeyInputManager } from "../input/KeyInputManager";
-import { TimeManager } from "../time/TimeManager";
+import { Composer } from "../rendering/composer";
 
 import { CharacterModel } from "./CharacterModel";
+import { CharacterModelLoader } from "./CharacterModelLoader";
+import { CharacterSpeakingIndicator } from "./CharacterSpeakingIndicator";
+import { AnimationState } from "./CharacterState";
 import { CharacterTooltip } from "./CharacterTooltip";
-import { LocalController } from "./LocalController";
 
-export type CharacterDescription = {
-  meshFileUrl: string;
+export type AnimationConfig = {
   idleAnimationFileUrl: string;
   jogAnimationFileUrl: string;
   sprintAnimationFileUrl: string;
   airAnimationFileUrl: string;
-  modelScale: number;
+  doubleJumpAnimationFileUrl: string;
 };
 
-export class Character {
-  public controller: LocalController | null = null;
+export type CharacterDescription = {
+  meshFileUrl?: string;
+  mmlCharacterUrl?: string;
+  mmlCharacterString?: string;
+} & (
+  | {
+      meshFileUrl: string;
+    }
+  | {
+      mmlCharacterUrl: string;
+    }
+  | {
+      mmlCharacterString: string;
+    }
+);
 
-  public name: string | null = null;
-  public model: CharacterModel | null = null;
+export type CharacterConfig = {
+  username: string;
+  characterDescription: CharacterDescription;
+  animationConfig: AnimationConfig;
+  characterModelLoader: CharacterModelLoader;
+  characterId: number;
+  modelLoadedCallback: () => void;
+  cameraManager: CameraManager;
+  composer: Composer;
+  isLocal: boolean;
+};
+
+export class Character extends Group {
+  private model: CharacterModel | null = null;
   public color: Color = new Color();
+  public tooltip: CharacterTooltip;
+  public speakingIndicator: CharacterSpeakingIndicator | null = null;
 
-  public position: Vector3 = new Vector3();
+  constructor(private config: CharacterConfig) {
+    super();
+    this.tooltip = new CharacterTooltip();
+    this.tooltip.setText(this.config.username, this.config.isLocal);
+    this.add(this.tooltip);
+    this.load().then(() => {
+      this.config.modelLoadedCallback();
+    });
+  }
 
-  public tooltip: CharacterTooltip | null = null;
-
-  constructor(
-    private readonly characterDescription: CharacterDescription,
-    private readonly id: number,
-    private readonly isLocal: boolean,
-    private readonly modelLoadedCallback: () => void,
-    private readonly collisionsManager: CollisionsManager,
-    private readonly keyInputManager: KeyInputManager,
-    private readonly cameraManager: CameraManager,
-    private readonly timeManager: TimeManager,
-  ) {
+  updateCharacter(username: string, characterDescription: CharacterDescription) {
+    this.config.username = username;
+    this.config.characterDescription = characterDescription;
     this.load();
+    this.tooltip.setText(username, this.config.isLocal);
   }
 
   private async load(): Promise<void> {
-    this.model = new CharacterModel(this.characterDescription);
+    const previousModel = this.model;
+    this.model = new CharacterModel({
+      characterDescription: this.config.characterDescription,
+      animationConfig: this.config.animationConfig,
+      characterModelLoader: this.config.characterModelLoader,
+      cameraManager: this.config.cameraManager,
+      characterId: this.config.characterId,
+      isLocal: this.config.isLocal,
+    });
     await this.model.init();
-    if (this.tooltip === null) {
-      this.tooltip = new CharacterTooltip(this.model.mesh!);
+    if (previousModel && previousModel.mesh) {
+      this.remove(previousModel.mesh!);
     }
-    this.color = this.model.material.colorsCube216[this.id];
-    if (this.isLocal) {
-      this.controller = new LocalController(
-        this.model,
-        this.id,
-        this.collisionsManager,
-        this.keyInputManager,
-        this.cameraManager,
-        this.timeManager,
-      );
+    this.add(this.model.mesh!);
+    if (this.speakingIndicator === null) {
+      this.speakingIndicator = new CharacterSpeakingIndicator(this.config.composer.postPostScene);
     }
-    this.modelLoadedCallback();
   }
 
-  public update(time: number) {
+  public updateAnimation(targetAnimation: AnimationState) {
+    this.model?.updateAnimation(targetAnimation);
+  }
+
+  public update(time: number, deltaTime: number) {
     if (!this.model) return;
     if (this.tooltip) {
-      this.tooltip.update(this.cameraManager.camera);
+      this.tooltip.update(this.config.cameraManager.camera);
     }
-    this.model.mesh!.getWorldPosition(this.position);
-    if (typeof this.model.material.uniforms.time !== "undefined") {
-      this.model.material.uniforms.time.value = time;
-      this.model.material.uniforms.diffuseRandomColor.value = this.color;
-      this.model.material.update();
+    if (this.speakingIndicator) {
+      this.speakingIndicator.setTime(time);
+      if (this.model.mesh && this.model.headBone) {
+        this.speakingIndicator.setBillboarding(
+          this.model.headBone?.getWorldPosition(new Vector3()),
+          this.config.cameraManager.camera,
+        );
+      }
     }
+    this.model.update(deltaTime);
+  }
+
+  getCurrentAnimation(): AnimationState {
+    return this.model?.currentAnimation || AnimationState.idle;
   }
 }

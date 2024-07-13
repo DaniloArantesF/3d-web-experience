@@ -5,8 +5,8 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 import { GaussGrainEffect } from "../../rendering/post-effects/gauss-grain";
 
 export const extrasValues = {
-  grain: 0.055,
-  bloom: 0.25,
+  grain: 0.045,
+  bloom: 0.15,
 };
 
 const extrasOptions = {
@@ -14,7 +14,7 @@ const extrasOptions = {
     amount: { min: 0, max: 0.2, step: 0.002 },
   },
   bloom: {
-    amount: { min: 0, max: 2, step: 0.05 },
+    amount: { min: 0, max: 50, step: 0.05 },
   },
 };
 

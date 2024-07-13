@@ -6,17 +6,13 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 export const rendererValues = {
   shadowMap: 2,
   toneMapping: 5,
-  exposure: 1,
-  bgIntensity: 0.45,
-  bgBlurriness: 0.0,
+  exposure: 1.7,
 };
 
 const rendererOptions = {
   shadowMap: { min: 0, max: 2, step: 1 },
   toneMapping: { min: 0, max: 5, step: 1 },
   exposure: { min: 0, max: 3, step: 0.01 },
-  bgIntensity: { min: 0, max: 1.3, step: 0.01 },
-  bgBlurriness: { min: 0, max: 0.1, step: 0.001 },
 };
 
 const shadowMapTypes: Record<number, string> = {
@@ -45,6 +41,8 @@ const setShadowMapType = (value: number): void => {
 
 const setToneMappingType = (value: number): void => {
   monitoredValues.toneMappingType = toneMappingTypes[value];
+  rendererValues.toneMapping = value;
+  console.log(rendererValues.toneMapping);
 };
 
 export class RendererFolder {
@@ -61,12 +59,9 @@ export class RendererFolder {
     this.folder.addBinding(rendererValues, "toneMapping", rendererOptions.toneMapping);
     this.folder.addBinding(monitoredValues, "toneMappingType", { readonly: true });
     this.folder.addBinding(rendererValues, "exposure", rendererOptions.exposure);
-    this.folder.addBinding(rendererValues, "bgIntensity", rendererOptions.bgIntensity);
-    this.folder.addBinding(rendererValues, "bgBlurriness", rendererOptions.bgBlurriness);
   }
 
   public setupChangeEvent(
-    scene: Scene,
     renderer: WebGLRenderer,
     toneMappingFolder: FolderApi,
     toneMappingPass: EffectPass,
@@ -82,19 +77,13 @@ export class RendererFolder {
           break;
         }
         case "toneMapping":
-          renderer.toneMapping = e.value as ToneMapping;
+          const value = e.value as ToneMapping;
           toneMappingFolder.hidden = e.value !== 5;
           toneMappingPass.enabled = e.value === 5 ? true : false;
           setToneMappingType(e.value as ToneMapping);
           break;
         case "exposure":
           renderer.toneMappingExposure = e.value as number;
-          break;
-        case "bgIntensity":
-          scene.backgroundIntensity = e.value as number;
-          break;
-        case "bgBlurriness":
-          scene.backgroundBlurriness = e.value as number;
           break;
         default:
           break;

@@ -15,16 +15,20 @@ export class TextChatUI {
   private appRef: React.RefObject<ChatUIInstance> = createRef<ChatUIInstance>();
 
   public addTextMessage(username: string, message: string) {
-    if (this.appRef.current) this.appRef.current.addMessage(username, message);
+    if (this.appRef.current) {
+      this.appRef.current.addMessage(username, message);
+    }
   }
 
-  private container = document.getElementById("text-chat-ui")!;
+  private wrapper = document.createElement("div");
 
   constructor(
+    private holderElement: HTMLElement,
     private clientname: string,
     private sendMessageToServerMethod: (message: string) => void,
   ) {
-    this.root = createRoot(this.container);
+    this.holderElement.appendChild(this.wrapper);
+    this.root = createRoot(this.wrapper);
     this.sendMessageToServerMethod = sendMessageToServerMethod;
   }
 

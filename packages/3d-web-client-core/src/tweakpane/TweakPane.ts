@@ -10,12 +10,16 @@ import {
 import { Scene, WebGLRenderer } from "three";
 import { FolderApi, Pane } from "tweakpane";
 
+import { CameraManager } from "../camera/CameraManager";
+import { LocalController } from "../character/LocalController";
+import { BrightnessContrastSaturation } from "../rendering/post-effects/bright-contrast-sat";
 import { GaussGrainEffect } from "../rendering/post-effects/gauss-grain";
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 
-import { BrightnessContrastSaturation } from "./../rendering/post-effects/bright-contrast-sat";
 import { BrightnessContrastSaturationFolder } from "./blades/bcsFolder";
+import { CameraFolder } from "./blades/cameraFolder";
+import { CharacterControlsFolder } from "./blades/characterControlsFolder";
 import { CharacterFolder } from "./blades/characterFolder";
 import { EnvironmentFolder } from "./blades/environmentFolder";
 import { PostExtrasFolder } from "./blades/postExtrasFolder";
@@ -27,7 +31,7 @@ import { setTweakpaneActive } from "./tweakPaneActivity";
 import { tweakPaneStyle } from "./tweakPaneStyle";
 
 export class TweakPane {
-  private gui: Pane = new Pane();
+  private gui: Pane;
 
   private renderStatsFolder: RendererStatsFolder;
   private rendererFolder: RendererFolder;
@@ -38,6 +42,8 @@ export class TweakPane {
   // @ts-ignore
   private character: CharacterFolder;
   private environment: EnvironmentFolder;
+  private camera: CameraFolder;
+  private characterControls: CharacterControlsFolder;
 
   private export: FolderApi;
 
@@ -45,10 +51,26 @@ export class TweakPane {
   public guiVisible: boolean = false;
 
   constructor(
+    private holderElement: HTMLElement,
     private renderer: WebGLRenderer,
     private scene: Scene,
     private composer: EffectComposer,
   ) {
+    const tweakPaneWrapper = document.createElement("div");
+    tweakPaneWrapper.style.position = "fixed";
+    tweakPaneWrapper.style.width = "400px";
+    tweakPaneWrapper.style.height = "100%";
+    tweakPaneWrapper.style.top = "0px";
+    tweakPaneWrapper.style.right = "calc(-50vw)";
+    tweakPaneWrapper.style.zIndex = "99";
+    tweakPaneWrapper.style.overflow = "auto";
+    tweakPaneWrapper.style.backgroundColor = "rgba(0, 0, 0, 0.66)";
+    tweakPaneWrapper.style.paddingLeft = "5px";
+    tweakPaneWrapper.style.boxShadow = "-7px 0px 12px rgba(0, 0, 0, 0.5)";
+    tweakPaneWrapper.style.transition = "right cubic-bezier(0.83, 0, 0.17, 1) 0.7s";
+    holderElement.appendChild(tweakPaneWrapper);
+
+    this.gui = new Pane({ container: tweakPaneWrapper! });
     this.gui.registerPlugin(EssentialsPlugin);
 
     if (this.saveVisibilityInLocalStorage) {
@@ -75,28 +97,31 @@ export class TweakPane {
     this.postExtrasFolder = new PostExtrasFolder(this.gui, false);
     this.character = new CharacterFolder(this.gui, false);
     this.environment = new EnvironmentFolder(this.gui, false);
+    this.camera = new CameraFolder(this.gui, false);
+    this.characterControls = new CharacterControlsFolder(this.gui, false);
 
     this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
-    window.addEventListener("keydown", this.processKey.bind(this));
-
-    this.setupGUIListeners.bind(this)();
-    this.setupRenderPane = this.setupRenderPane.bind(this);
-  }
-
-  private processKey(e: KeyboardEvent): void {
-    if (e.key === "p") this.toggleGUI();
+    window.addEventListener("keydown", (e) => {
+      this.processKey(e);
+    });
+    this.setupGUIListeners();
   }
 
   private setupGUIListeners(): void {
     const gui = this.gui as any;
     const paneElement: HTMLElement = gui.containerElem_;
-    paneElement.style.display = this.guiVisible ? "unset" : "none";
+    paneElement.style.right = this.guiVisible ? "0px" : "-450px";
+    this.gui.element.addEventListener("mouseenter", () => setTweakpaneActive(true));
     this.gui.element.addEventListener("mousedown", () => setTweakpaneActive(true));
     this.gui.element.addEventListener("mouseup", () => setTweakpaneActive(false));
     this.gui.element.addEventListener("mouseleave", () => setTweakpaneActive(false));
+  }
+
+  private processKey(e: KeyboardEvent): void {
+    if (e.key === "p") this.toggleGUI();
   }
 
   public setupRenderPane(
@@ -113,12 +138,13 @@ export class TweakPane {
     hasLighting: boolean,
     sun: Sun | null,
     setHDR: () => void,
+    setSkyboxAzimuthalAngle: (azimuthalAngle: number) => void,
+    setSkyboxPolarAngle: (azimuthalAngle: number) => void,
     setAmbientLight: () => void,
     setFog: () => void,
   ): void {
     // RenderOptions
     this.rendererFolder.setupChangeEvent(
-      this.scene,
       this.renderer,
       this.toneMappingFolder.folder,
       toneMappingPass,
@@ -128,7 +154,15 @@ export class TweakPane {
     this.ssaoFolder.setupChangeEvent(composer, normalPass, ppssaoEffect, ppssaoPass, n8aopass);
     this.bcsFolder.setupChangeEvent(brightnessContrastSaturation);
     this.postExtrasFolder.setupChangeEvent(bloomEffect, gaussGrainEffect);
-    this.environment.setupChangeEvent(setHDR, setAmbientLight, setFog, sun);
+    this.environment.setupChangeEvent(
+      this.scene,
+      setHDR,
+      setSkyboxAzimuthalAngle,
+      setSkyboxPolarAngle,
+      setAmbientLight,
+      setFog,
+      sun,
+    );
     this.environment.folder.hidden = hasLighting === false || sun === null;
 
     const exportButton = this.export.addButton({ title: "export" });
@@ -143,8 +177,24 @@ export class TweakPane {
     });
   }
 
+  public setupCamPane(cameraManager: CameraManager) {
+    this.camera.setupChangeEvent(cameraManager);
+  }
+
+  public setupCharacterController(localController: LocalController) {
+    this.characterControls.setupChangeEvent(localController);
+  }
+
   public updateStats(timeManager: TimeManager): void {
     this.renderStatsFolder.update(this.renderer, this.composer, timeManager);
+  }
+
+  public updateCameraData(cameraManager: CameraManager) {
+    this.camera.update(cameraManager);
+  }
+
+  public updateCharacterData(localController: LocalController) {
+    this.characterControls.update(localController);
   }
 
   private formatDateForFilename(): string {
@@ -192,10 +242,10 @@ export class TweakPane {
   }
 
   private toggleGUI(): void {
+    this.guiVisible = !this.guiVisible;
     const gui = this.gui as any;
     const paneElement: HTMLElement = gui.containerElem_;
-    paneElement.style.display = this.guiVisible ? "none" : "unset";
-    this.guiVisible = !this.guiVisible;
+    paneElement.style.right = this.guiVisible ? "0px" : "-450px";
     if (this.saveVisibilityInLocalStorage) {
       localStorage.setItem("guiVisible", this.guiVisible === true ? "true" : "false");
     }

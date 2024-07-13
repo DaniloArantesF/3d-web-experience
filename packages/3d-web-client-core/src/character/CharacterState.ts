@@ -5,6 +5,7 @@ export enum AnimationState {
   "jumpToAir" = 3,
   "air" = 4,
   "airToGround" = 5,
+  "doubleJump" = 6,
 }
 
 export type CharacterState = {
@@ -17,6 +18,15 @@ export type CharacterState = {
   rotation: {
     quaternionY: number;
     quaternionW: number;
+  };
+  camPosition?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  camQuaternion?: {
+    y: number;
+    w: number;
   };
   state: AnimationState;
 };

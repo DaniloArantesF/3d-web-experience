@@ -3,58 +3,68 @@ import {
   Interaction,
   InteractionListener,
   InteractionManager,
+  MElement,
   MMLClickTrigger,
+  PositionAndRotation,
   PromptManager,
   PromptProps,
-  registerCustomElementsToWindow,
-  setGlobalMScene,
-  PositionAndRotation,
-  MElement,
+  ChatProbe,
+  LoadingProgressManager,
 } from "mml-web";
 import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 
+type MMLCompositionSceneConfig = {
+  targetElement: HTMLElement;
+  renderer: WebGLRenderer;
+  scene: Scene;
+  camera: PerspectiveCamera;
+  audioListener: AudioListener;
+  collisionsManager: CollisionsManager;
+  getUserPositionAndRotation: () => PositionAndRotation;
+};
+
 export class MMLCompositionScene {
   public group: Group;
-  private debug: boolean = false;
 
-  private readonly mmlScene: Partial<IMMLScene>;
+  public readonly mmlScene: IMMLScene;
   private readonly promptManager: PromptManager;
+  private readonly interactionManager: InteractionManager;
   private readonly interactionListener: InteractionListener;
+  private readonly chatProbes = new Set<ChatProbe>();
   private readonly clickTrigger: MMLClickTrigger;
+  private readonly loadingProgressManager: LoadingProgressManager;
 
-  constructor(
-    private renderer: WebGLRenderer,
-    private scene: Scene,
-    private camera: PerspectiveCamera,
-    private audioListener: AudioListener,
-    private collisionsManager: CollisionsManager,
-    private getUserPositionAndRotation: () => PositionAndRotation,
-    documentAddresses: Array<string>,
-  ) {
+  constructor(private config: MMLCompositionSceneConfig) {
     this.group = new Group();
-    this.promptManager = PromptManager.init(document.body);
+    this.promptManager = PromptManager.init(this.config.targetElement);
 
-    const { interactionListener } = InteractionManager.init(document.body, this.camera, this.scene);
+    const { interactionListener, interactionManager } = InteractionManager.init(
+      this.config.targetElement,
+      this.config.camera,
+      this.config.scene,
+    );
+    this.interactionManager = interactionManager;
     this.interactionListener = interactionListener;
+    this.loadingProgressManager = new LoadingProgressManager();
 
     this.mmlScene = {
-      getAudioListener: () => this.audioListener,
-      getRenderer: () => this.renderer,
-      getThreeScene: () => this.scene,
+      getAudioListener: () => this.config.audioListener,
+      getRenderer: () => this.config.renderer,
+      getThreeScene: () => this.config.scene,
       getRootContainer: () => this.group,
-      getCamera: () => this.camera,
+      getCamera: () => this.config.camera,
       addCollider: (object: Object3D, mElement: MElement) => {
-        this.collisionsManager.addMeshesGroup(object as Group, mElement);
+        this.config.collisionsManager.addMeshesGroup(object as Group, mElement);
       },
       updateCollider: (object: Object3D) => {
-        this.collisionsManager.updateMeshesGroup(object as Group);
+        this.config.collisionsManager.updateMeshesGroup(object as Group);
       },
       removeCollider: (object: Object3D) => {
-        this.collisionsManager.removeMeshesGroup(object as Group);
+        this.config.collisionsManager.removeMeshesGroup(object as Group);
       },
-      getUserPositionAndRotation: this.getUserPositionAndRotation,
+      getUserPositionAndRotation: this.config.getUserPositionAndRotation,
       addInteraction: (interaction: Interaction) => {
         this.interactionListener.addInteraction(interaction);
       },
@@ -64,20 +74,35 @@ export class MMLCompositionScene {
       removeInteraction: (interaction: Interaction) => {
         this.interactionListener.removeInteraction(interaction);
       },
+      addChatProbe: (chatProbe: ChatProbe) => {
+        this.chatProbes.add(chatProbe);
+      },
+      updateChatProbe: () => {
+        // no-op
+      },
+      removeChatProbe: (chatProbe: ChatProbe) => {
+        this.chatProbes.delete(chatProbe);
+      },
       prompt: (promptProps: PromptProps, callback: (message: string | null) => void) => {
         this.promptManager.prompt(promptProps, callback);
       },
+      getLoadingProgressManager: () => {
+        return this.loadingProgressManager;
+      },
     };
-    setGlobalMScene(this.mmlScene as IMMLScene);
-    registerCustomElementsToWindow(window);
-    this.clickTrigger = MMLClickTrigger.init(document, this.mmlScene as IMMLScene);
-    if (this.debug) {
-      console.log(this.clickTrigger);
+
+    this.clickTrigger = MMLClickTrigger.init(this.config.targetElement, this.mmlScene as IMMLScene);
+  }
+
+  onChatMessage(message: string) {
+    for (const chatProbe of this.chatProbes) {
+      chatProbe.trigger(message);
     }
-    for (const address of documentAddresses) {
-      const frameElement = document.createElement("m-frame");
-      frameElement.setAttribute("src", address);
-      document.body.appendChild(frameElement);
-    }
+  }
+
+  dispose() {
+    this.promptManager.dispose();
+    this.clickTrigger.dispose();
+    this.interactionManager.dispose();
   }
 }

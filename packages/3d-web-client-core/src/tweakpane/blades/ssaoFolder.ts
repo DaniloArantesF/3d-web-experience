@@ -11,10 +11,10 @@ export const ppssaoValues = {
   samples: 30,
   rings: 11,
   luminanceInfluence: 0.7,
-  radius: 0.03,
-  intensity: 2.5,
-  bias: 0.05,
-  fade: 0.03,
+  radius: 0.045,
+  intensity: 3.14,
+  bias: 0.01,
+  fade: 0.06,
   resolutionScale: 0.5,
   color: { r: 0, g: 0, b: 0 },
   worldDistanceThreshold: 30,
@@ -40,10 +40,10 @@ const ppssaoOptions = {
 
 export const n8ssaoValues = {
   enabled: true,
-  halfRes: false,
+  halfRes: true,
   aoRadius: 5,
   distanceFalloff: 3.0,
-  intensity: 1.0,
+  intensity: 1.5,
   color: { r: 0, g: 0, b: 0 },
   aoSamples: 16,
   denoiseSamples: 4,
@@ -51,14 +51,14 @@ export const n8ssaoValues = {
   viewMode: "Combined",
 };
 
-const n8ssaoOptions = {
+export const n8ssaoOptions = {
   radius: { min: 0.1, max: 6, step: 0.1 },
   distanceFalloff: { min: 1, max: 6, step: 0.1 },
   intensity: { min: 0.1, max: 5, step: 0.1 },
   aoSamples: [2, 4, 8, 16, 32, 64],
   denoiseSamples: [2, 4, 8, 16, 32, 64],
   denoiseRadius: [3, 6, 12],
-  viewMode: ["Combined", "AO", "Split", "No AO"],
+  viewMode: ["Combined", "AO", "No AO", "Split", "Split AO", "No AO"],
 };
 
 const ssaoMaterialParams = [
@@ -175,10 +175,10 @@ export class SSAOFolder {
       this.aoDisplay = this.n8ssao.addBinding(n8ssaoValues, "viewMode", {
         view: "radiogrid",
         groupName: "viewMode",
-        size: [2, 2],
+        size: [3, 2],
         cells: (x: number, y: number) => ({
-          title: `${n8ssaoOptions.viewMode[y * 2 + x]}`,
-          value: `${n8ssaoOptions.viewMode[y * 2 + x]}`,
+          title: `${n8ssaoOptions.viewMode[y * 3 + x]}`,
+          value: `${n8ssaoOptions.viewMode[y * 3 + x]}`,
         }),
         label: "viewMode",
       });
@@ -247,6 +247,10 @@ export class SSAOFolder {
         case "enabled":
           if (e.value === true) {
             composer.addPass(n8aopass, this.postProcessingSSAOIndex + 2);
+            composer.passes[this.postProcessingSSAOIndex + 2].setSize(
+              window.innerWidth,
+              window.innerHeight,
+            );
           } else {
             composer.removePass(n8aopass);
           }
